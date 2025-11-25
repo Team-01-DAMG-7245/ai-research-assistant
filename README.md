@@ -44,7 +44,11 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
 
 7. Ingest papers:
    ```bash
+   # With command-line arguments
    python scripts/ingest_arxiv_papers.py --max-papers 500
+   
+   # Or run interactively (will prompt for number of papers and categories)
+   python scripts/ingest_arxiv_papers.py
    ```
 
 ## Project Structure
