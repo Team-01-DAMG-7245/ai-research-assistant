@@ -28,9 +28,12 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
    pip install 'git+https://github.com/facebookresearch/detectron2.git'
    ```
 
-4. Download PubLayNet model:
-   - Download from: https://huggingface.co/nlpconnect/PubLayNet-faster_rcnn_R_50_FPN_3x/tree/d4cebcc544ac0c9899748e1023e2f3ccda8ca70e
-   - Copy the files into your root directory
+4. Set up Git LFS and download PubLayNet model:
+   ```bash
+   git lfs install
+   git lfs pull  # Downloads the publaynet-model/ directory
+   ```
+   Note: The PubLayNet model is stored in Git LFS. If cloning the repo, run `git lfs pull` to download model files.
 
 5. Set up environment variables (AWS credentials, Pinecone API key)
 
@@ -50,3 +53,4 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
 - `scripts/` - Utility scripts for ingestion and setup
 - `tests/` - Test suites
 - `pinecone/` - Pinecone configuration and agent documentation
+- `publaynet-model/` - PubLayNet model files (stored in Git LFS)
