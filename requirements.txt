@@ -10,27 +10,18 @@ arxiv==2.1.0
 numpy==1.24.4
 pandas==2.1.4
 
-# PyTorch (MUST be installed before any packages that import torch)
-# Install these FIRST before layoutparser or detectron2
-torch==2.1.0
-torchvision==0.16.0
-
 # PDF Processing
 PyMuPDF==1.23.26
 pdfplumber==0.10.3
 pytesseract==0.3.10
-camelot-py==0.11.0
+camelot-py==0.11.0  # Table extraction from PDFs
 # Note: If you need ghostscript support for camelot, install separately:
 # macOS: brew install ghostscript
 # Ubuntu: sudo apt-get install ghostscript
 Pillow==10.2.0
 opencv-python==4.8.1.78
 
-# Layout Detection (requires torch/torchvision to be installed first)
-layoutparser==0.3.4
-# detectron2 must be installed AFTER torch/torchvision are installed
-# Install with: pip install 'git+https://github.com/facebookresearch/detectron2.git'
-# Or use pre-built wheel: pip install detectron2 -f https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch2.1/index.html
+# Layout Detection - REMOVED (not needed for this project)
 
 # Testing & utilities (aligned with Airflow constraints)
 pytest==7.4.4
@@ -39,6 +30,7 @@ tqdm==4.66.1
 
 # Dependency conflict resolution
 pyparsing>=3.1.0  # Required by pydot 4.0.1 (conflicts with Airflow's 3.0.9)
+PyYAML>=6.0  # Fix for build issues with newer setuptools (has pre-built wheels for Python 3.11)
 
 # Pinecone (for vector search)
 pinecone

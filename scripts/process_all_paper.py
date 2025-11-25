@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 from tqdm import tqdm
 import json
 import logging
+from datetime import datetime
 from src.utils.s3_client import S3Client
 from src.utils.pdf_processor import PDFProcessor
 

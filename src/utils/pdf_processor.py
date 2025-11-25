@@ -1,5 +1,5 @@
 """
-PDF Processor - Orchestrates text, table, and layout extraction
+PDF Processor - Orchestrates text and table extraction
 """
 
 from pathlib import Path
@@ -8,7 +8,6 @@ import json
 import logging
 from .extract_pdf_text import PDFTextExtractor
 from .extract_tables_hybrid import PDFTableExtractor
-# from .layout_detection import PDFLayoutDetector  # Optional - comment out if not available
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 class PDFProcessor:
     """
     Complete PDF processing pipeline
-    Combines text, table, layout extraction, and chunking
+    Combines text extraction, table extraction, and chunking
     """
     
     def __init__(
@@ -24,7 +23,6 @@ class PDFProcessor:
         chunk_size: int = 512,
         overlap: int = 50,
         table_threshold: int = 22,
-        layout_model_dir: Optional[str] = None  # NEW
     ):
         """
         Initialize PDF processor
@@ -33,7 +31,6 @@ class PDFProcessor:
             chunk_size: Words per chunk
             overlap: Overlapping words between chunks
             table_threshold: Threshold for camelot lattice/stream decision
-            layout_model_dir: Path to PubLayNet model (None to disable)
         """
         self.chunk_size = chunk_size
         self.overlap = overlap
@@ -41,14 +38,8 @@ class PDFProcessor:
         self.text_extractor = PDFTextExtractor()
         self.table_extractor = PDFTableExtractor(threshold=table_threshold)
         
-        # Layout detection (optional - requires layout_detection module)
+        # Layout detection - DISABLED (removed from project)
         self.layout_detector = None
-        # Uncomment if layout_detection module is available:
-        # if layout_model_dir:
-        #     from .layout_detection import PDFLayoutDetector
-        #     self.layout_detector = PDFLayoutDetector(model_dir=layout_model_dir)
-        #     if not self.layout_detector.is_available():
-        #         self.layout_detector = None
         
         self.logger = logging.getLogger(__name__)
     
@@ -76,7 +67,7 @@ class PDFProcessor:
         self,
         pdf_path: str,
         extract_tables: bool = True,
-        extract_layout: bool = True,  # NEW
+        extract_layout: bool = False,  # Layout detection disabled
         create_chunks: bool = True,
         save_intermediates: bool = False,
         output_dir: Optional[str] = None
@@ -87,7 +78,7 @@ class PDFProcessor:
         Args:
             pdf_path: Path to PDF file
             extract_tables: Whether to extract tables
-            extract_layout: Whether to detect layout (requires model)
+            extract_layout: Whether to detect layout (disabled - feature removed)
             create_chunks: Whether to chunk text
             save_intermediates: Whether to save intermediate files
             output_dir: Base output directory for intermediate files
@@ -101,15 +92,13 @@ class PDFProcessor:
         # Set up output directories
         text_dir = None
         table_dir = None
-        layout_dir = None
         
         if save_intermediates and output_dir:
             text_dir = Path(output_dir) / "text"
             table_dir = Path(output_dir) / "tables"
-            layout_dir = Path(output_dir) / "layout"
         
         # 1. Extract text
-        self.logger.info("Step 1/4: Extracting text...")
+        self.logger.info("Step 1/3: Extracting text...")
         text_result = self.text_extractor.extract_pdf(
             str(pdf_path),
             output_dir=text_dir
@@ -124,36 +113,22 @@ class PDFProcessor:
         # 2. Create chunks
         chunks = []
         if create_chunks and full_text:
-            self.logger.info("Step 2/4: Creating text chunks...")
+            self.logger.info("Step 2/3: Creating text chunks...")
             chunks = self.chunk_text(full_text)
             self.logger.info(f"Created {len(chunks)} chunks")
         else:
-            self.logger.info("Step 2/4: Skipping chunking")
+            self.logger.info("Step 2/3: Skipping chunking")
         
         # 3. Extract tables
         table_result = None
         if extract_tables:
-            self.logger.info("Step 3/4: Extracting tables...")
+            self.logger.info("Step 3/3: Extracting tables...")
             table_result = self.table_extractor.extract_tables_from_pdf(
                 str(pdf_path),
                 output_dir=table_dir
             )
         else:
-            self.logger.info("Step 3/4: Skipping table extraction")
-        
-        # 4. Detect layout
-        layout_result = None
-        if extract_layout and self.layout_detector:
-            self.logger.info("Step 4/4: Detecting layout...")
-            layout_result = self.layout_detector.detect_pdf_layout(
-                str(pdf_path),
-                output_dir=layout_dir
-            )
-        else:
-            if extract_layout:
-                self.logger.info("Step 4/4: Layout detection not available")
-            else:
-                self.logger.info("Step 4/4: Skipping layout detection")
+            self.logger.info("Step 3/3: Skipping table extraction")
         
         # Compile results
         result = {
@@ -182,11 +157,7 @@ class PDFProcessor:
                 ])
             }
         
-        if layout_result:
-            result['layout_detection'] = {
-                'total_blocks': layout_result.get('total_blocks', 0),
-                'block_types': layout_result.get('overall_block_counts', {})
-            }
+        # Layout detection results removed (feature disabled)
         
         self.logger.info(f"✅ Processing complete: {pdf_path.name}")
         return result
@@ -196,14 +167,13 @@ class PDFProcessor:
 if __name__ == "__main__":
     processor = PDFProcessor(
         chunk_size=512,
-        overlap=50,
-        layout_model_dir="publaynet-model"  # Enable layout detection
+        overlap=50
     )
     
     result = processor.process_pdf(
         "./data/raw/test.pdf",
         extract_tables=True,
-        extract_layout=True,  # NEW
+        extract_layout=False,  # Layout detection disabled
         create_chunks=True,
         save_intermediates=True,
         output_dir="./data/processed"

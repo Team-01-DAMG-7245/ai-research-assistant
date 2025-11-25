@@ -5,7 +5,7 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
 ## Features
 
 - **arXiv Paper Ingestion**: Automated fetching and processing of research papers
-- **PDF Processing**: Text extraction, layout detection, and table extraction
+- **PDF Processing**: Text extraction and table extraction
 - **Vector Search**: Pinecone integration for semantic search
 - **AWS Integration**: S3 storage and processing pipeline
 - **Airflow Orchestration**: Automated workflow management
@@ -22,27 +22,19 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
    ```bash
    pip install -r requirements.txt
    ```
-
-3. Install detectron2 (must be installed AFTER torch/torchvision):
+   Or use the automated installation script:
    ```bash
-   pip install 'git+https://github.com/facebookresearch/detectron2.git'
+   python scripts/install_requirements.py
    ```
 
-4. Set up Git LFS and download PubLayNet model:
-   ```bash
-   git lfs install
-   git lfs pull  # Downloads the publaynet-model/ directory
-   ```
-   Note: The PubLayNet model is stored in Git LFS. If cloning the repo, run `git lfs pull` to download model files.
+3. Set up environment variables (AWS credentials, Pinecone API key)
 
-5. Set up environment variables (AWS credentials, Pinecone API key)
-
-6. Set up S3 bucket:
+4. Set up S3 bucket:
    ```bash
    python scripts/setup_s3.py
    ```
 
-7. Ingest papers:
+5. Ingest papers:
    ```bash
    # With command-line arguments
    python scripts/ingest_arxiv_papers.py --max-papers 500
@@ -57,4 +49,3 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
 - `scripts/` - Utility scripts for ingestion and setup
 - `tests/` - Test suites
 - `pinecone/` - Pinecone configuration and agent documentation
-- `publaynet-model/` - PubLayNet model files (stored in Git LFS)

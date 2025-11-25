@@ -47,34 +47,47 @@ class PDFLayoutDetector:
     
     def _load_robust_model(self):
         """Load model with version compatibility handling"""
-        if not self.model_dir.exists():
-            self.logger.error(f"Model directory not found: {self.model_dir}")
-            return None
+        # Strategy: Try multiple approaches in order of preference
         
-        config_files = list(self.model_dir.glob("*.yaml")) + list(self.model_dir.glob("*.yml"))
-        weight_files = list(self.model_dir.glob("*.pth"))
+        # Option 1: Try custom PubLayNet model with detectron2 (if model_dir provided and detectron2 available)
+        if self.model_dir.exists():
+            config_files = list(self.model_dir.glob("*.yaml")) + list(self.model_dir.glob("*.yml"))
+            weight_files = list(self.model_dir.glob("*.pth"))
+            
+            if config_files and weight_files:
+                config_path = config_files[0]
+                weight_path = weight_files[0]
+                
+                self.logger.info(f"Loading custom PubLayNet model from {self.model_dir}")
+                try:
+                    model = lp.Detectron2LayoutModel(
+                        config_path=str(config_path),
+                        model_path=str(weight_path),
+                        extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.3],
+                        label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
+                    )
+                    self.logger.info("✅ Loaded custom PubLayNet model (detectron2 backend)")
+                    return model
+                except Exception as e:
+                    self.logger.warning(f"Custom model loading failed: {e}")
+                    self.logger.info("Falling back to layoutparser's pre-trained model...")
         
-        if not config_files or not weight_files:
-            self.logger.error("Missing config or weight files")
-            return None
-        
-        config_path = config_files[0]
-        weight_path = weight_files[0]
-        
-        self.logger.info(f"Loading model from {self.model_dir}")
-        
-        # Try standard loading
+        # Option 2: Try layoutparser's pre-trained PubLayNet model (requires detectron2 but downloads automatically)
         try:
+            self.logger.info("Loading layoutparser's pre-trained PubLayNet model...")
+            # This uses detectron2 under the hood but handles installation automatically
             model = lp.Detectron2LayoutModel(
-                config_path=str(config_path),
-                model_path=str(weight_path),
-                extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.3],
+                config_path="lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
+                model_path="lp://PubLayNet/faster_rcnn_R_50_FPN_3x/model",
                 label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
+                extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.3]
             )
-            self.logger.info("Model loaded successfully")
+            self.logger.info("✅ Loaded layoutparser's pre-trained PubLayNet model")
             return model
         except Exception as e:
-            self.logger.error(f"Failed to load model: {e}")
+            self.logger.error(f"Failed to load pre-trained model: {e}")
+            self.logger.warning("Layout detection requires detectron2. Install with:")
+            self.logger.warning("  pip install 'git+https://github.com/facebookresearch/detectron2.git'")
             return None
     
     def detect_page_layout(
