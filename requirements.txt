@@ -35,5 +35,9 @@ PyYAML>=6.0  # Fix for build issues with newer setuptools (has pre-built wheels 
 # Pinecone (for vector search)
 pinecone
 
+# OpenAI (for embeddings and chat completions)
+openai>=1.0.0
+tiktoken>=0.5.0
+
 # Airflow
 apache-airflow==2.8.1 --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.9.txt"
