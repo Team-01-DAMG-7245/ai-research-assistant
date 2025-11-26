@@ -35,46 +35,66 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--max-papers', type=int, default=None)
     parser.add_argument('--categories', nargs='+', default=None)
+    parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation prompts')
     args = parser.parse_args()
+    
+    # Check if running in interactive terminal
+    is_interactive = sys.stdin.isatty()
     
     # Interactive mode if arguments not provided
     if args.max_papers is None:
-        print("\n" + "="*70)
-        print("arXiv Paper Ingestion for aiRA Research Assistant")
-        print("="*70)
-        print("\nRecommended paper counts:")
-        print("  - 100 papers: ~15-20 min (good for quick testing)")
-        print("  - 200 papers: ~30-40 min (balanced)")
-        print("  - 500 papers: ~2-3 hours (substantial dataset)")
-        print("  - 1000 papers: ~4-6 hours (large dataset)")
-        print("  - 5000 papers: ~8-12 hours (full proposal target)")
-        
-        while True:
-            try:
-                max_papers = int(input("\nHow many papers do you want to ingest? "))
-                if max_papers > 0:
-                    break
-                print("Please enter a positive number")
-            except ValueError:
-                print("Please enter a valid number")
+        if not is_interactive:
+            # Default to 100 papers in non-interactive mode
+            max_papers = 100
+            print(f"\nNon-interactive mode: Using default of {max_papers} papers")
+            print("(Use --max-papers to specify a different number)")
+        else:
+            print("\n" + "="*70)
+            print("arXiv Paper Ingestion for aiRA Research Assistant")
+            print("="*70)
+            print("\nRecommended paper counts:")
+            print("  - 100 papers: ~15-20 min (good for quick testing)")
+            print("  - 200 papers: ~30-40 min (balanced)")
+            print("  - 500 papers: ~2-3 hours (substantial dataset)")
+            print("  - 1000 papers: ~4-6 hours (large dataset)")
+            print("  - 5000 papers: ~8-12 hours (full proposal target)")
+            
+            while True:
+                try:
+                    max_papers = int(input("\nHow many papers do you want to ingest? "))
+                    if max_papers > 0:
+                        break
+                    print("Please enter a positive number")
+                except (ValueError, EOFError, KeyboardInterrupt):
+                    print("\nCancelled.")
+                    sys.exit(1)
     else:
         max_papers = args.max_papers
     
     if args.categories is None:
-        print("\nDefault categories: cs.AI, cs.LG, cs.CL")
-        use_default = input("Use default categories? (y/n): ").strip().lower()
-        
-        if use_default == 'y':
+        if not is_interactive:
+            # Use defaults in non-interactive mode
             categories = ['cs.AI', 'cs.LG', 'cs.CL']
+            print(f"\nUsing default categories: {', '.join(categories)}")
         else:
-            print("\nAvailable CS categories:")
-            print("  cs.AI  - Artificial Intelligence")
-            print("  cs.LG  - Machine Learning")
-            print("  cs.CL  - Computation and Language")
-            print("  cs.CV  - Computer Vision")
-            print("  cs.NE  - Neural and Evolutionary Computing")
-            cats = input("Enter categories (space-separated): ").strip().split()
-            categories = cats if cats else ['cs.AI', 'cs.LG', 'cs.CL']
+            print("\nDefault categories: cs.AI, cs.LG, cs.CL")
+            use_default = input("Use default categories? (y/n): ").strip().lower()
+            
+            if use_default == 'y':
+                categories = ['cs.AI', 'cs.LG', 'cs.CL']
+            else:
+                print("\nAvailable CS categories:")
+                print("  cs.AI  - Artificial Intelligence")
+                print("  cs.LG  - Machine Learning")
+                print("  cs.CL  - Computation and Language")
+                print("  cs.CV  - Computer Vision")
+                print("  cs.NE  - Neural and Evolutionary Computing")
+                try:
+                    cats = input("Enter categories (space-separated): ").strip().split()
+                    categories = cats if cats else ['cs.AI', 'cs.LG', 'cs.CL']
+                except (EOFError, KeyboardInterrupt):
+                    print("\nCancelled.")
+                    sys.exit(1)
     else:
         categories = args.categories
     
@@ -89,11 +109,16 @@ def main():
     print(f"Estimated time: ~{est_minutes:.0f} minutes")
     print("="*70)
     
-    # Confirm
-    confirm = input("\nProceed? (y/n): ").strip().lower()
-    if confirm != 'y':
-        print("Cancelled.")
-        return
+    # Confirm (skip if --yes flag or non-interactive)
+    if not args.yes and is_interactive:
+        try:
+            confirm = input("\nProceed? (y/n): ").strip().lower()
+            if confirm != 'y':
+                print("Cancelled.")
+                return
+        except (EOFError, KeyboardInterrupt):
+            print("\nCancelled.")
+            sys.exit(1)
     
     print()
     
