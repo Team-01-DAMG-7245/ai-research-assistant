@@ -1,0 +1,30 @@
+{
+  "last_updated": "2025-12-01T12:52:33.197955",
+  "total_records": 2,
+  "records": [
+    {
+      "timestamp": "2025-12-01T12:47:57.919807",
+      "task_id": "test_task",
+      "model": "gpt-4o-mini",
+      "prompt_tokens": 100,
+      "completion_tokens": 50,
+      "total_tokens": 150,
+      "cost": 0.001,
+      "operation": "test_operation",
+      "method": "chat_completion",
+      "duration": 1.5
+    },
+    {
+      "timestamp": "2025-12-01T12:52:33.197955",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 7,
+      "completion_tokens": 0,
+      "total_tokens": 7,
+      "cost": 1.4e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 1.4967842102050781
+    }
+  ]
+}
