@@ -92,18 +92,19 @@ def query_to_embedding(query: str) -> List[float]:
         raise
 
 
-def semantic_search(query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+def semantic_search(query: str, top_k: int = 10, namespace: str = "research_papers") -> List[Dict[str, Any]]:
     """
     Perform a semantic search in Pinecone for the given query.
 
     This function:
       1. Converts the query to an embedding.
-      2. Queries the configured Pinecone index.
+      2. Queries the configured Pinecone index in the specified namespace.
       3. Returns the top_k results with useful metadata.
 
     Args:
         query: Natural language query text.
         top_k: Number of top matches to return (default: 10).
+        namespace: Pinecone namespace to search (default: "research_papers").
 
     Returns:
         List of dictionaries, each containing:
@@ -127,10 +128,12 @@ def semantic_search(query: str, top_k: int = 10) -> List[Dict[str, Any]]:
     index = _get_pinecone_index()
 
     try:
+        # AGENTS.md: Always use namespaces for data isolation
         response = index.query(
             vector=embedding,
             top_k=top_k,
             include_metadata=True,
+            namespace=namespace,
         )
     except Exception as exc:
         logger.exception("Error during Pinecone query: %s", exc)
