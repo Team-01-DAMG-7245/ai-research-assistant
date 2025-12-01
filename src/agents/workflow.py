@@ -8,7 +8,6 @@ a single executable graph.
 
 from __future__ import annotations
 
-import logging
 from typing import Literal
 
 try:
@@ -18,6 +17,7 @@ except ImportError:
         "LangGraph is required. Install it with: pip install langgraph"
     )
 
+from ..utils.logger import get_workflow_logger, log_state_transition
 from .state import ResearchState
 from .search_agent import search_agent_node
 from .synthesis_agent import synthesis_agent_node
@@ -25,7 +25,7 @@ from .validation_agent import validation_agent_node
 from .hitl_review import hitl_review_node
 
 
-logger = logging.getLogger(__name__)
+logger = get_workflow_logger()
 
 
 def set_final_report_node(state: ResearchState) -> ResearchState:
@@ -40,11 +40,19 @@ def set_final_report_node(state: ResearchState) -> ResearchState:
     Returns:
         Updated ResearchState with final_report set.
     """
+    task_id = state.get("task_id", "unknown")
     new_state = dict(state)
     report_draft = state.get("report_draft", "")
     if report_draft and not new_state.get("final_report"):
         new_state["final_report"] = report_draft
-        logger.info("Set final_report to report_draft (HITL review skipped)")
+        logger.info("Set final_report to report_draft (HITL review skipped) | task_id=%s", task_id)
+        log_state_transition(
+            logger,
+            from_state="validation",
+            to_state="set_final_report",
+            task_id=task_id,
+            action="auto_approve",
+        )
     return new_state
 
 
@@ -60,13 +68,37 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
     Returns:
         "hitl_review" if needs_hitl is True, "set_final_report" otherwise.
     """
+    task_id = state.get("task_id", "unknown")
     needs_hitl = state.get("needs_hitl", False)
+    confidence_score = state.get("confidence_score", 0.0)
     
     if needs_hitl:
-        logger.info("Routing to HITL review (needs_hitl=True)")
+        logger.info(
+            "Routing to HITL review | task_id=%s | confidence=%.2f | needs_hitl=True",
+            task_id,
+            confidence_score,
+        )
+        log_state_transition(
+            logger,
+            from_state="validation",
+            to_state="hitl_review",
+            task_id=task_id,
+            confidence_score=confidence_score,
+        )
         return "hitl_review"
     else:
-        logger.info("Skipping HITL review (needs_hitl=False), setting final_report")
+        logger.info(
+            "Skipping HITL review | task_id=%s | confidence=%.2f | needs_hitl=False",
+            task_id,
+            confidence_score,
+        )
+        log_state_transition(
+            logger,
+            from_state="validation",
+            to_state="set_final_report",
+            task_id=task_id,
+            confidence_score=confidence_score,
+        )
         return "set_final_report"
 
 

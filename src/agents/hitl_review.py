@@ -14,32 +14,20 @@ A Streamlit UI will be built in M4 for production use.
 
 from __future__ import annotations
 
-import logging
 import sys
-from pathlib import Path
+import time
 from typing import Any, Dict
 
+from ..utils.logger import (
+    get_agent_logger,
+    log_state_transition,
+    log_performance_metrics,
+    log_error_with_context,
+)
 from .state import ResearchState
 
 
-logger = logging.getLogger(__name__)
-
-# Ensure HITL review logs are also written to a file for later inspection
-_LOGS_PATH = Path(__file__).parent.parent / "logs"
-_LOGS_PATH.mkdir(exist_ok=True)
-_LOG_FILE = _LOGS_PATH / "hitl_review.log"
-
-if not any(
-    isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "") == str(_LOG_FILE)
-    for h in logger.handlers
-):
-    file_handler = logging.FileHandler(_LOG_FILE, encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+logger = get_agent_logger("hitl_review")
 
 
 def _display_report_summary(report_draft: str, max_preview: int = 1000) -> None:
@@ -186,24 +174,39 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
     Returns:
         Updated ResearchState with final_report or error based on user decision.
     """
+    start_time = time.time()
+    task_id = state.get("task_id", "unknown")
+    
+    logger.info("=" * 70)
+    logger.info("HITL REVIEW - Entry | task_id=%s", task_id)
+    logger.debug("Input state keys: %s", list(state.keys()))
+    
     new_state = dict(state)
     new_state["current_agent"] = "hitl_review"
 
     try:
         needs_hitl = state.get("needs_hitl", False)
-        task_id = state.get("task_id", "unknown")
+        confidence_score = state.get("confidence_score", 0.0)
 
         # 1) Check if review is needed
         if not needs_hitl:
-            logger.info("HITL review skipped for task_id=%s (needs_hitl=False)", task_id)
+            logger.info("HITL review skipped | task_id=%s | needs_hitl=False | confidence=%.2f", 
+                       task_id, confidence_score)
             # If no review needed, set final_report to report_draft
             report_draft = state.get("report_draft", "")
             if report_draft:
                 new_state["final_report"] = report_draft
                 logger.info("Set final_report to report_draft (no review needed)")
+            log_state_transition(
+                logger,
+                from_state="validation",
+                to_state="hitl_review",
+                task_id=task_id,
+                action="skipped",
+            )
             return new_state
 
-        logger.info("HITL review started for task_id=%s", task_id)
+        logger.info("HITL review started | task_id=%s | confidence=%.2f", task_id, confidence_score)
 
         # 2) Extract required information
         report_draft = state.get("report_draft", "")
@@ -212,16 +215,25 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
 
         if not report_draft:
             error_msg = "report_draft is required for HITL review"
-            logger.error(error_msg)
+            log_error_with_context(logger, ValueError(error_msg), "hitl_review_node", task_id=task_id)
             new_state["error"] = error_msg
             return new_state
+
+        logger.info(
+            "Review information | report_length=%d chars | word_count=%d | confidence=%.2f",
+            len(report_draft),
+            len(report_draft.split()),
+            confidence_score,
+        )
 
         # 3) Display report and validation info
         _display_report_summary(report_draft)
         _display_validation_info(validation_result, confidence_score)
 
         # 4) Prompt user for action
+        logger.info("Waiting for user input...")
         action = _prompt_user_action()
+        logger.info("User action received: %s", action)
 
         # 5) Handle user action
         if action == 'approve':
@@ -272,10 +284,40 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
             new_state["final_report"] = report_draft
             new_state["error"] = None
 
+        total_duration = time.time() - start_time
+        log_performance_metrics(
+            logger,
+            operation="hitl_review_complete",
+            duration=total_duration,
+            task_id=task_id,
+            action=action,
+            confidence_score=confidence_score,
+        )
+        
+        log_state_transition(
+            logger,
+            from_state="validation",
+            to_state="hitl_review",
+            task_id=task_id,
+            action=action,
+            confidence_score=confidence_score,
+        )
+        
+        logger.info("HITL REVIEW - Exit | task_id=%s | action=%s | duration=%.2fs", 
+                   task_id, action, total_duration)
+        logger.info("=" * 70)
+
         return new_state
 
     except Exception as exc:
-        logger.exception("hitl_review_node encountered an error: %s", exc)
+        total_duration = time.time() - start_time
+        log_error_with_context(
+            logger,
+            exc,
+            "hitl_review_node",
+            task_id=task_id,
+            duration=total_duration,
+        )
         new_state["error"] = f"hitl_review_node_error: {exc}"
         # On error, default to using report_draft as final_report
         new_state.setdefault("final_report", state.get("report_draft", ""))

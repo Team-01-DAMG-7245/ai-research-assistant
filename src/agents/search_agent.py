@@ -12,31 +12,23 @@ This module defines a LangGraph-style node function that:
 from __future__ import annotations
 
 import json
-import logging
-from pathlib import Path
+import time
 from typing import Any, Dict, List, Tuple
 
 from ..utils.openai_client import OpenAIClient
 from ..utils.pinecone_rag import semantic_search
+from ..utils.logger import (
+    get_agent_logger,
+    log_state_transition,
+    log_api_call,
+    log_performance_metrics,
+    log_error_with_context,
+)
 from .prompts import format_search_agent_prompt
 from .state import ResearchState
 
 
-logger = logging.getLogger(__name__)
-
-# Ensure search agent logs are also written to a file for later inspection
-_LOGS_PATH = Path(__file__).parent.parent / "logs"
-_LOGS_PATH.mkdir(exist_ok=True)
-_LOG_FILE = _LOGS_PATH / "search_agent.log"
-
-if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "") == str(_LOG_FILE) for h in logger.handlers):
-    file_handler = logging.FileHandler(_LOG_FILE, encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+logger = get_agent_logger("search_agent")
 
 
 def _parse_search_queries(response_text: str) -> List[str]:
@@ -145,22 +137,30 @@ def search_agent_node(state: ResearchState) -> ResearchState:
     Returns:
         Updated `ResearchState` with search information.
     """
+    start_time = time.time()
+    task_id = state.get("task_id", "unknown")
+    
+    logger.info("=" * 70)
+    logger.info("SEARCH AGENT - Entry | task_id=%s", task_id)
+    logger.debug("Input state keys: %s", list(state.keys()))
+    
     new_state: ResearchState = dict(state)  # type: ignore[assignment]
     new_state["current_agent"] = "search_agent"
 
     user_query = state.get("user_query")  # type: ignore[assignment]
     if not user_query or not isinstance(user_query, str) or not user_query.strip():
         msg = "search_agent_node: 'user_query' is missing or empty in state"
-        logger.error(msg)
+        log_error_with_context(logger, ValueError(msg), "search_agent_node", task_id=task_id)
         new_state["error"] = msg
         new_state.setdefault("search_queries", [])
         new_state.setdefault("search_results", [])
         return new_state
 
     try:
-        logger.info("Search agent started for task_id=%s", state.get("task_id"))
+        logger.info("Processing user query: %s", user_query[:100])
 
         # 1) Generate search queries with GPT-4o Mini
+        query_start_time = time.time()
         client = OpenAIClient()
         prompt = format_search_agent_prompt(user_query)
         messages = [
@@ -170,68 +170,149 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             }
         ]
 
-        logger.info("Calling OpenAI search agent model to generate search queries")
+        logger.debug("Calling OpenAI API for query expansion | model=gpt-4o-mini | temperature=0.3")
         llm_response = client.chat_completion(
             messages=messages,
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=500,
             operation="query_expansion",
+            task_id=task_id,
         )
 
+        query_duration = time.time() - query_start_time
         raw_content = llm_response.get("content", "")
-        logger.debug("Raw LLM search-agent response: %s", raw_content)
+        prompt_tokens = llm_response.get("prompt_tokens", 0)
+        completion_tokens = llm_response.get("completion_tokens", 0)
+        cost = llm_response.get("cost", 0.0)
+        
+        log_api_call(
+            logger,
+            operation="query_expansion",
+            model="gpt-4o-mini",
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            duration=query_duration,
+            cost=cost,
+            task_id=task_id,
+        )
+        
+        logger.debug("Raw LLM response length: %d characters", len(raw_content))
 
         queries = _parse_search_queries(raw_content)
-        logger.info("Generated %d search queries from LLM", len(queries))
+        logger.info("Generated %d search queries: %s", len(queries), queries)
 
         # 2) Run semantic search for each query
+        search_start_time = time.time()
         results_by_query: List[Tuple[str, List[Dict[str, Any]]]] = []
-        for q in queries:
+        total_results = 0
+        
+        for idx, q in enumerate(queries, 1):
             try:
-                logger.info("Running semantic search for query: %s", q)
-                results = semantic_search(q, top_k=10)
-                logger.info("Got %d results for query", len(results))
+                logger.debug("Semantic search %d/%d | query='%s'", idx, len(queries), q)
+                query_search_start = time.time()
+                results = semantic_search(q, top_k=10, namespace="research_papers", task_id=task_id)
+                query_search_duration = time.time() - query_search_start
+                
+                logger.info(
+                    "Semantic search completed | query='%s' | results=%d | duration=%.2fs",
+                    q,
+                    len(results),
+                    query_search_duration,
+                )
                 results_by_query.append((q, results))
+                total_results += len(results)
             except Exception as exc:
-                logger.exception("Semantic search failed for query '%s': %s", q, exc)
+                log_error_with_context(
+                    logger,
+                    exc,
+                    "semantic_search",
+                    task_id=task_id,
+                    query=q,
+                    query_index=idx,
+                )
                 # Continue with other queries instead of failing the whole node
                 continue
 
+        search_duration = time.time() - search_start_time
+        log_performance_metrics(
+            logger,
+            operation="semantic_search_all_queries",
+            duration=search_duration,
+            task_id=task_id,
+            queries_processed=len(results_by_query),
+            total_results_before_dedup=total_results,
+        )
+
         # 3) Combine, deduplicate, and rank results
+        dedup_start_time = time.time()
         combined_results: List[Dict[str, Any]] = []
         if results_by_query:
             deduped = _deduplicate_and_rank(results_by_query)
             combined_results = deduped[:20]
+            dedup_duration = time.time() - dedup_start_time
 
             logger.info(
-                "Combined %d queries into %d unique results (top 20 returned)",
-                len(results_by_query),
+                "Deduplication completed | input_results=%d | unique_results=%d | "
+                "final_results=%d | duration=%.2fs",
+                total_results,
+                len(deduped),
                 len(combined_results),
+                dedup_duration,
             )
 
-            # Log detailed results to file for debugging / audit
-            for i, result in enumerate(combined_results, start=1):
-                logger.info(
-                    "Result %d | doc_id=%s | score=%.4f | title=%s | origin_query=%s",
+            # Log top results for debugging / audit
+            logger.debug("Top search results:")
+            for i, result in enumerate(combined_results[:10], start=1):  # Log top 10
+                logger.debug(
+                    "  %d. doc_id=%s | score=%.4f | title='%s' | origin_query='%s'",
                     i,
-                    result.get("doc_id"),
+                    result.get("doc_id", "N/A"),
                     float(result.get("score") or 0.0),
-                    (result.get("title") or "")[:200],
-                    result.get("origin_query"),
+                    (result.get("title") or "N/A")[:100],
+                    result.get("origin_query", "N/A"),
                 )
         else:
-            logger.warning("No search results were obtained for any query")
+            logger.warning("No search results obtained for any query | task_id=%s", task_id)
 
         # 4) Update state
         new_state["search_queries"] = queries
         new_state["search_results"] = combined_results
         new_state["error"] = None
 
+        total_duration = time.time() - start_time
+        log_performance_metrics(
+            logger,
+            operation="search_agent_complete",
+            duration=total_duration,
+            task_id=task_id,
+            queries_generated=len(queries),
+            final_results=len(combined_results),
+        )
+        
+        log_state_transition(
+            logger,
+            from_state="entry",
+            to_state="search_agent",
+            task_id=task_id,
+            queries=len(queries),
+            results=len(combined_results),
+        )
+        
+        logger.info("SEARCH AGENT - Exit | task_id=%s | duration=%.2fs", task_id, total_duration)
+        logger.info("=" * 70)
+
         return new_state
 
     except Exception as exc:
-        logger.exception("search_agent_node encountered an error: %s", exc)
+        total_duration = time.time() - start_time
+        log_error_with_context(
+            logger,
+            exc,
+            "search_agent_node",
+            task_id=task_id,
+            duration=total_duration,
+        )
         new_state["error"] = f"search_agent_node_error: {exc}"
         # Ensure we always have these keys present
         new_state.setdefault("search_queries", [])

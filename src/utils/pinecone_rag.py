@@ -6,7 +6,7 @@ using Pinecone, OpenAI embeddings, and S3-stored chunk content.
 
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from pinecone import Pinecone
@@ -51,7 +51,7 @@ def _get_pinecone_index() -> Any:
         raise
 
 
-def query_to_embedding(query: str) -> List[float]:
+def query_to_embedding(query: str, task_id: Optional[str] = None) -> List[float]:
     """
     Convert a query string to an OpenAI embedding vector.
 
@@ -59,6 +59,7 @@ def query_to_embedding(query: str) -> List[float]:
 
     Args:
         query: Natural language query text.
+        task_id: Optional task ID for logging and cost tracking.
 
     Returns:
         List of floats representing the embedding (length 1536).
@@ -75,6 +76,7 @@ def query_to_embedding(query: str) -> List[float]:
             query,
             model="text-embedding-3-small",
             operation="embedding",
+            task_id=task_id,
         )
         embedding = result["embeddings"]
 
@@ -93,7 +95,12 @@ def query_to_embedding(query: str) -> List[float]:
         raise
 
 
-def semantic_search(query: str, top_k: int = 10, namespace: str = "research_papers") -> List[Dict[str, Any]]:
+def semantic_search(
+    query: str, 
+    top_k: int = 10, 
+    namespace: str = "research_papers",
+    task_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Perform a semantic search in Pinecone for the given query.
 
@@ -106,6 +113,7 @@ def semantic_search(query: str, top_k: int = 10, namespace: str = "research_pape
         query: Natural language query text.
         top_k: Number of top matches to return (default: 10).
         namespace: Pinecone namespace to search (default: "research_papers").
+        task_id: Optional task ID for logging and cost tracking.
 
     Returns:
         List of dictionaries, each containing:
@@ -123,7 +131,7 @@ def semantic_search(query: str, top_k: int = 10, namespace: str = "research_pape
         raise ValueError("top_k must be a positive integer")
 
     # Step 1: embed the query
-    embedding = query_to_embedding(query)
+    embedding = query_to_embedding(query, task_id=task_id)
 
     # Step 2: get Pinecone index
     index = _get_pinecone_index()
