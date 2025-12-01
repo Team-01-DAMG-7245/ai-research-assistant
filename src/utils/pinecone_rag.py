@@ -144,10 +144,14 @@ def semantic_search(query: str, top_k: int = 10, namespace: str = "research_pape
 
     for match in matches:
         metadata = getattr(match, "metadata", {}) or {}
-        doc_id = metadata.get("doc_id") or getattr(match, "id", None)
+        match_id = getattr(match, "id", None)
+        doc_id = metadata.get("doc_id") or match_id
+        chunk_id = metadata.get("chunk_id") or match_id
 
         result = {
-            "doc_id": doc_id,
+            "id": match_id,  # Pinecone vector ID
+            "chunk_id": chunk_id,  # Chunk identifier for S3 retrieval
+            "doc_id": doc_id,  # Document identifier
             "score": getattr(match, "score", None),
             "text": metadata.get("text"),
             "title": metadata.get("title"),
