@@ -1,0 +1,26 @@
+{
+  "task_id": "validation_test_20251201_122023",
+  "user_query": "What are the latest advances in transformer architectures?",
+  "report_word_count": 1015,
+  "source_count": 10,
+  "validation_result": {
+    "valid": false,
+    "confidence": 0.65,
+    "issues": [
+      "Citation coverage is low; not all claims are cited.",
+      "Some citations do not correspond to actual sources."
+    ],
+    "citation_coverage": 0.6,
+    "unsupported_claims": [
+      "The ability of transformers to decompose complex tasks into simpler components has been explored.",
+      "Recent studies have highlighted the trade-offs between model performance and computational cost."
+    ],
+    "invalid_citations": [],
+    "has_contradictions": false,
+    "final_confidence": 0.65
+  },
+  "confidence_score": 0.65,
+  "needs_hitl": true,
+  "error": null,
+  "timestamp": "2025-12-01T12:21:29.361093"
+}
