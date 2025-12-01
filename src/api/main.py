@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 import uvicorn
 
@@ -90,10 +91,10 @@ settings = Settings()
 # Middleware
 # ============================================================================
 
-class RequestIDMiddleware:
+class RequestIDMiddleware(BaseHTTPMiddleware):
     """Middleware to add a unique request ID to each request."""
     
-    async def __call__(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         """Add request ID to request and response headers."""
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
@@ -103,41 +104,51 @@ class RequestIDMiddleware:
         return response
 
 
-class JSONLoggingMiddleware:
+class JSONLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log requests and responses in JSON format."""
     
-    async def __call__(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         """Log request and response details."""
         start_time = datetime.now()
-        request_id = getattr(request.state, "request_id", "unknown")
+        # Get request_id safely - it should be set by RequestIDMiddleware
+        try:
+            request_id = getattr(request.state, "request_id", "unknown")
+        except AttributeError:
+            request_id = "unknown"
         
         # Log request
-        logger.info(
-            "Request received",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "query_params": dict(request.query_params),
-                "client_host": request.client.host if request.client else None,
-            }
-        )
+        try:
+            logger.info(
+                "Request received",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": str(request.url.path),
+                    "query_params": dict(request.query_params) if hasattr(request, 'query_params') else {},
+                    "client_host": request.client.host if request.client else None,
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Error logging request: {e}")
         
         try:
             response = await call_next(request)
             process_time = (datetime.now() - start_time).total_seconds()
             
             # Log response
-            logger.info(
-                "Request completed",
-                extra={
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status_code": response.status_code,
-                    "process_time": process_time,
-                }
-            )
+            try:
+                logger.info(
+                    "Request completed",
+                    extra={
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": str(request.url.path),
+                        "status_code": response.status_code,
+                        "process_time": process_time,
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Error logging response: {e}")
             
             response.headers["X-Process-Time"] = str(process_time)
             return response
@@ -149,7 +160,7 @@ class JSONLoggingMiddleware:
                 extra={
                     "request_id": request_id,
                     "method": request.method,
-                    "path": request.url.path,
+                    "path": str(request.url.path),
                     "error": str(e),
                     "process_time": process_time,
                 },
@@ -158,10 +169,10 @@ class JSONLoggingMiddleware:
             raise
 
 
-class ErrorHandlingMiddleware:
+class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     """Middleware to handle and format errors consistently."""
     
-    async def __call__(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         """Catch exceptions and return formatted error responses."""
         try:
             response = await call_next(request)
@@ -226,37 +237,38 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Initializing service connections...")
         
-        # Test OpenAI connection
+        # Test OpenAI connection (lazy import to avoid errors)
         if settings.OPENAI_API_KEY:
             try:
                 from src.utils.openai_client import OpenAIClient
                 client = OpenAIClient()
                 logger.info("OpenAI client initialized successfully")
             except Exception as e:
-                logger.warning(f"OpenAI client initialization failed: {e}")
+                logger.warning(f"OpenAI client initialization failed: {e}", exc_info=True)
         
-        # Test Pinecone connection
+        # Test Pinecone connection (lazy import to avoid errors)
         if settings.PINECONE_API_KEY and settings.PINECONE_INDEX_NAME:
             try:
                 from src.utils.pinecone_rag import _get_pinecone_index
                 index = _get_pinecone_index()
                 logger.info("Pinecone index initialized successfully")
             except Exception as e:
-                logger.warning(f"Pinecone initialization failed: {e}")
+                logger.warning(f"Pinecone initialization failed: {e}", exc_info=True)
         
-        # Test S3 connection
+        # Test S3 connection (lazy import to avoid errors)
         if settings.S3_BUCKET_NAME:
             try:
                 from src.utils.s3_client import S3Client
                 s3_client = S3Client()
                 logger.info("S3 client initialized successfully")
             except Exception as e:
-                logger.warning(f"S3 client initialization failed: {e}")
+                logger.warning(f"S3 client initialization failed: {e}", exc_info=True)
         
         logger.info("Service connections initialized")
         
     except Exception as e:
         logger.error(f"Error during startup: {e}", exc_info=True)
+        # Don't raise in development mode to allow server to start even if services fail
         if settings.APP_ENV == "production":
             raise
     
@@ -291,11 +303,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add middleware (order matters - last added is first executed)
-# RequestIDMiddleware must be first so request_id is available to other middleware
-app.add_middleware(ErrorHandlingMiddleware)
-app.add_middleware(JSONLoggingMiddleware)
-app.add_middleware(RequestIDMiddleware)  # This runs first (last added)
+# Add middleware (order matters - last added is first executed/outermost)
+# RequestIDMiddleware must run first (outermost) to set request_id
+# ErrorHandlingMiddleware should be outermost to catch all errors
+# JSONLoggingMiddleware runs in the middle and can access request_id
+app.add_middleware(ErrorHandlingMiddleware)  # Added first, runs last (innermost)
+app.add_middleware(JSONLoggingMiddleware)  # Added second, runs middle
+app.add_middleware(RequestIDMiddleware)  # Added last, runs first (outermost) - sets request_id
 
 # CORS middleware
 app.add_middleware(
