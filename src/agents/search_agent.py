@@ -176,6 +176,7 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             model="gpt-4o-mini",
             temperature=0.3,
             max_tokens=500,
+            operation="query_expansion",
         )
 
         raw_content = llm_response.get("content", "")

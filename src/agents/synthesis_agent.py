@@ -219,6 +219,7 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                 model="gpt-4o-mini",
                 temperature=0.3,
                 max_tokens=2000,
+                operation="synthesis",
             )
 
             report_draft = llm_response.get("content", "").strip()

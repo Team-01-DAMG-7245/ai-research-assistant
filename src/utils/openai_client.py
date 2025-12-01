@@ -15,6 +15,14 @@ from dotenv import load_dotenv
 from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError, APIError
 import tiktoken
 
+# Import cost tracker
+try:
+    from .cost_tracker import get_cost_tracker
+    _COST_TRACKER_AVAILABLE = True
+except ImportError:
+    _COST_TRACKER_AVAILABLE = False
+    logger.warning("Cost tracker not available")
+
 load_dotenv()
 
 # Configure logging
@@ -287,9 +295,22 @@ class OpenAIClient:
         prompt_tokens: int,
         completion_tokens: int = 0,
         cost: float = 0.0,
-        duration: float = 0.0
+        duration: float = 0.0,
+        operation: Optional[str] = None
     ):
-        """Log API call with timestamp and details"""
+        """
+        Log API call with timestamp and details.
+        Also logs to cost tracker if available.
+        
+        Args:
+            method: API method name
+            model: Model name
+            prompt_tokens: Number of prompt tokens
+            completion_tokens: Number of completion tokens
+            cost: Cost in USD
+            duration: Duration in seconds
+            operation: Operation type (query_expansion, synthesis, validation, embedding)
+        """
         timestamp = datetime.now().isoformat()
         self.logger.info(
             f"[{timestamp}] OpenAI API Call - "
@@ -297,6 +318,22 @@ class OpenAIClient:
             f"Tokens: {prompt_tokens}+{completion_tokens}={prompt_tokens + completion_tokens}, "
             f"Cost: ${cost:.6f}, Duration: {duration:.2f}s"
         )
+        
+        # Log to cost tracker if available
+        if _COST_TRACKER_AVAILABLE and operation:
+            try:
+                from .cost_tracker import log_api_call
+                log_api_call(
+                    model=model,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    operation=operation,
+                    cost=cost,
+                    method=method,
+                    duration=duration
+                )
+            except Exception as exc:
+                self.logger.warning(f"Failed to log to cost tracker: {exc}")
     
     def _update_stats(
         self,
@@ -324,6 +361,7 @@ class OpenAIClient:
         model: str = "gpt-3.5-turbo",
         temperature: float = 1.0,
         max_tokens: Optional[int] = None,
+        operation: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -378,7 +416,7 @@ class OpenAIClient:
             duration = time.time() - start_time
             
             # Log and update stats
-            self._log_api_call("chat_completion", model, prompt_tokens, completion_tokens, cost, duration)
+            self._log_api_call("chat_completion", model, prompt_tokens, completion_tokens, cost, duration, operation)
             self._update_stats(model, prompt_tokens, completion_tokens, cost)
             
             return {
@@ -405,6 +443,7 @@ class OpenAIClient:
         self,
         text: Union[str, List[str]],
         model: str = "text-embedding-3-small",
+        operation: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -462,7 +501,7 @@ class OpenAIClient:
             duration = time.time() - start_time
             
             # Log and update stats
-            self._log_api_call("create_embedding", model, prompt_tokens, 0, cost, duration)
+            self._log_api_call("create_embedding", model, prompt_tokens, 0, cost, duration, operation or "embedding")
             self._update_stats(model, prompt_tokens, 0, cost)
             
             return {

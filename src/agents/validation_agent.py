@@ -264,6 +264,7 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
                 model="gpt-4o-mini",
                 temperature=0.1,
                 max_tokens=800,
+                operation="validation",
             )
 
             response_text = llm_response.get("content", "").strip()

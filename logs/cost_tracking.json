@@ -1,0 +1,18 @@
+{
+  "last_updated": "2025-12-01T12:47:57.919807",
+  "total_records": 1,
+  "records": [
+    {
+      "timestamp": "2025-12-01T12:47:57.919807",
+      "task_id": "test_task",
+      "model": "gpt-4o-mini",
+      "prompt_tokens": 100,
+      "completion_tokens": 50,
+      "total_tokens": 150,
+      "cost": 0.001,
+      "operation": "test_operation",
+      "method": "chat_completion",
+      "duration": 1.5
+    }
+  ]
+}

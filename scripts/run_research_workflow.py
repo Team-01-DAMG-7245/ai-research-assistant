@@ -28,6 +28,7 @@ sys.path.insert(0, str(project_root))
 from src.agents.workflow import compiled_workflow
 from src.agents.state import ResearchState
 from src.utils.s3_client import S3Client
+from src.utils.cost_tracker import get_cost_tracker, get_query_cost
 
 # Setup logging
 logging.basicConfig(
@@ -194,6 +195,10 @@ def main():
     # Generate task ID
     task_id = args.task_id or str(uuid.uuid4())
 
+    # Set task ID in cost tracker
+    cost_tracker = get_cost_tracker()
+    cost_tracker.set_task_id(task_id)
+
     print("\n" + "="*70)
     print("Starting Research Workflow")
     print("="*70)
@@ -309,10 +314,20 @@ def main():
     if final_report and s3_key:
         print(f"S3 Location: s3://{S3Client().bucket}/{s3_key}")
     
-    print(f"\nNote: API costs are logged per agent in:")
-    print(f"  - src/logs/search_agent.log")
-    print(f"  - src/logs/synthesis_agent.log")
-    print(f"  - src/logs/validation_agent.log")
+    # Display cost information
+    task_cost = get_query_cost(task_id)
+    total_cost = cost_tracker.get_total_cost()
+    cost_by_operation = cost_tracker.get_cost_by_operation()
+    
+    print(f"\nCost Information:")
+    print(f"  Task Cost: ${task_cost:.6f}")
+    print(f"  Total Cost (all tasks): ${total_cost:.6f}")
+    if cost_by_operation:
+        print(f"  Cost by Operation:")
+        for op, cost in cost_by_operation.items():
+            print(f"    - {op}: ${cost:.6f}")
+    
+    print(f"\nNote: Detailed cost logs saved to: logs/cost_tracking.json")
     
     print(f"{'='*70}\n")
 

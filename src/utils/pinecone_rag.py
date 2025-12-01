@@ -74,6 +74,7 @@ def query_to_embedding(query: str) -> List[float]:
         result = client.create_embedding(
             query,
             model="text-embedding-3-small",
+            operation="embedding",
         )
         embedding = result["embeddings"]
 
