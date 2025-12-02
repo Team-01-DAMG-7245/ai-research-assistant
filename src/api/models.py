@@ -30,6 +30,8 @@ class TaskStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
 
 
 class HITLAction(str, Enum):

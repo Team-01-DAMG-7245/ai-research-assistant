@@ -7,16 +7,22 @@ Uses asyncio for non-blocking operations and proper error handling.
 
 import asyncio
 import logging
+import os
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, List
 
-from src.agents.workflow import compiled_workflow
 from src.agents.state import ResearchState
 from src.api.task_manager import TaskManager, TaskStatus, get_task_manager
 from src.utils.s3_client import S3Client
 
 logger = logging.getLogger(__name__)
+
+# Lazy import of compiled_workflow to avoid executing during module import
+def _get_compiled_workflow():
+    """Lazy import of compiled_workflow to avoid execution during module import."""
+    from src.agents.workflow import compiled_workflow
+    return compiled_workflow
 
 
 # ============================================================================
@@ -90,18 +96,27 @@ class WorkflowExecutor:
         }
         
         try:
+            # Set API mode environment variable for HITL review agent
+            os.environ["API_MODE"] = "true"
+            
             # Run workflow in thread pool (since compiled_workflow.invoke is synchronous)
+            logger.info(f"Executing workflow in thread pool for task {task_id}")
             final_state = await asyncio.get_event_loop().run_in_executor(
                 self.executor,
                 self._execute_workflow_with_progress,
                 task_id,
                 initial_state
             )
+            logger.info(f"Workflow execution completed for task {task_id}")
             
             # Check for errors in final state
             error = final_state.get("error")
             if error:
-                logger.error(f"Workflow completed with error for task {task_id}: {error}")
+                logger.error(
+                    f"Workflow completed with error for task {task_id}: {error} | "
+                    f"report_draft: {len(final_state.get('report_draft', ''))} chars | "
+                    f"final_report: {len(final_state.get('final_report', ''))} chars"
+                )
                 self.task_manager.mark_task_failed(task_id, error)
                 return {
                     "success": False,
@@ -111,17 +126,30 @@ class WorkflowExecutor:
                 }
             
             # Extract final report and metadata
+            # Try final_report first, then report_draft as fallback
             final_report = final_state.get("final_report", "")
             if not final_report:
-                error_msg = "No final report generated"
-                logger.error(f"{error_msg} for task {task_id}")
-                self.task_manager.mark_task_failed(task_id, error_msg)
-                return {
-                    "success": False,
-                    "task_id": task_id,
-                    "error": error_msg,
-                    "state": final_state
-                }
+                # Fallback to report_draft if final_report is empty
+                report_draft = final_state.get("report_draft", "")
+                if report_draft:
+                    logger.warning(
+                        f"No final_report, using report_draft for task {task_id} | "
+                        f"draft length: {len(report_draft)}"
+                    )
+                    final_report = report_draft
+                else:
+                    error_msg = "No final report or report_draft generated"
+                    logger.error(
+                        f"{error_msg} for task {task_id} | "
+                        f"state keys: {list(final_state.keys())}"
+                    )
+                    self.task_manager.mark_task_failed(task_id, error_msg)
+                    return {
+                        "success": False,
+                        "task_id": task_id,
+                        "error": error_msg,
+                        "state": final_state
+                    }
             
             # Extract sources from retrieved_chunks
             sources = self._extract_sources(final_state)
@@ -201,8 +229,23 @@ class WorkflowExecutor:
             # For now, we'll use invoke and track manually
             # In the future, we could use stream_events for real-time progress
             
+            # Set API mode for non-interactive execution
+            os.environ["API_MODE"] = "true"
+            
+            # Get compiled workflow (lazy import)
+            compiled_workflow = _get_compiled_workflow()
+            
+            logger.info(f"Invoking workflow for task {task_id}")
+            logger.debug(f"Initial state keys: {list(initial_state.keys())}")
+            
             # Execute workflow
             final_state = compiled_workflow.invoke(initial_state)
+            
+            logger.info(f"Workflow invocation completed for task {task_id}")
+            logger.debug(f"Final state keys: {list(final_state.keys())}")
+            logger.debug(f"Final state report_draft length: {len(final_state.get('report_draft', ''))}")
+            logger.debug(f"Final state final_report length: {len(final_state.get('final_report', ''))}")
+            logger.debug(f"Final state error: {final_state.get('error')}")
             
             # Track agent transitions (workflow nodes)
             # The workflow goes: search -> synthesis -> validation -> (hitl_review or set_final_report)

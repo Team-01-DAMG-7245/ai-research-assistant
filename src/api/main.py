@@ -320,6 +320,11 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
+# Include routers
+from src.api.endpoints import research, review
+app.include_router(research.router)
+app.include_router(review.router)
+
 
 # ============================================================================
 # Health Check Endpoints
