@@ -2,6 +2,31 @@
 
 AI-powered research assistant for ingesting and processing arXiv papers with vector search capabilities.
 
+## Quick Command Reference
+
+```bash
+# Setup
+python -m venv venv && venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+
+# Start API Server
+python src/api/main.py
+
+# Run Tests
+pytest tests/test_api.py -v
+
+# Submit Research Query
+curl -X POST "http://localhost:8000/api/v1/research" -H "Content-Type: application/json" -d '{"query": "Your research question", "depth": "standard"}'
+
+# Check Status
+curl "http://localhost:8000/api/v1/status/{task_id}"
+
+# Get Report
+curl "http://localhost:8000/api/v1/report/{task_id}?format=json"
+```
+
+See [Quick Start](#quick-start) section below for detailed instructions.
+
 ## Milestones
 
 - ✅ **M1**: Data Ingestion Pipeline (Complete)
@@ -39,36 +64,304 @@ AI-powered research assistant for ingesting and processing arXiv papers with vec
 
 ## Quick Start
 
-1. Set up virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+### 1. Environment Setup
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   Or use the automated installation script:
-   ```bash
-   python scripts/install_requirements.py
-   ```
+```bash
+# Create virtual environment
+python -m venv venv
 
-3. Set up environment variables (AWS credentials, Pinecone API key)
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On Linux/Mac:
+source venv/bin/activate
 
-4. Set up S3 bucket:
-   ```bash
-   python scripts/setup_s3.py
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-5. Ingest papers:
-   ```bash
-   # With command-line arguments
-   python scripts/ingest_arxiv_papers.py --max-papers 500
-   
-   # Or run interactively (will prompt for number of papers and categories)
-   python scripts/ingest_arxiv_papers.py
-   ```
+# Or use automated installation script
+python scripts/install_requirements.py
+```
+
+### 2. Environment Variables Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Pinecone Configuration
+PINECONE_API_KEY=your_pinecone_api_key_here
+PINECONE_INDEX_NAME=your_index_name
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=your_bucket_name
+
+# API Configuration (optional)
+API_HOST=0.0.0.0
+API_PORT=8000
+APP_ENV=development
+DEBUG=true
+
+# Database Configuration (optional, defaults to data/tasks.db)
+TASK_DB_PATH=data/tasks.db
+```
+
+### 3. S3 Bucket Setup
+
+```bash
+# Set up S3 bucket structure (bronze/silver/gold layers)
+python scripts/setup_s3.py
+```
+
+### 4. Data Ingestion
+
+```bash
+# Ingest papers with command-line arguments
+python scripts/ingest_arxiv_papers.py --max-papers 500
+
+# Or run interactively (will prompt for number of papers and categories)
+python scripts/ingest_arxiv_papers.py
+
+# Ingest specific categories
+python scripts/ingest_arxiv_papers.py --categories cs.AI cs.LG --max-papers 100
+```
+
+### 5. Run the FastAPI Server
+
+```bash
+# Start the API server
+python src/api/main.py
+
+# Or using uvicorn directly
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# With custom host/port
+uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+```
+
+The API will be available at:
+- **API Base URL**: `http://localhost:8000`
+- **Interactive Docs**: `http://localhost:8000/docs`
+- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
+- **Health Check**: `http://localhost:8000/health`
+
+### 6. API Endpoints Usage
+
+#### Submit Research Query
+
+```bash
+# Using curl
+curl -X POST "http://localhost:8000/api/v1/research" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are the latest developments in quantum computing?",
+    "depth": "standard",
+    "user_id": "user_12345"
+  }'
+
+# Using Python requests
+python -c "
+import requests
+response = requests.post('http://localhost:8000/api/v1/research', json={
+    'query': 'What are the latest developments in quantum computing?',
+    'depth': 'standard',
+    'user_id': 'user_12345'
+})
+print(response.json())
+"
+```
+
+#### Check Task Status
+
+```bash
+# Replace {task_id} with actual task ID from submission
+curl "http://localhost:8000/api/v1/status/{task_id}"
+
+# Example
+curl "http://localhost:8000/api/v1/status/d516660f-b170-4bb0-b26f-b599f51299ae"
+```
+
+#### Get Research Report
+
+```bash
+# Get report as JSON (default)
+curl "http://localhost:8000/api/v1/report/{task_id}?format=json"
+
+# Get report as Markdown
+curl "http://localhost:8000/api/v1/report/{task_id}?format=markdown"
+
+# Get report as PDF (returns URL)
+curl "http://localhost:8000/api/v1/report/{task_id}?format=pdf"
+```
+
+#### Submit HITL Review
+
+```bash
+# Approve report
+curl -X POST "http://localhost:8000/api/v1/review/{task_id}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "approve",
+    "task_id": "{task_id}"
+  }'
+
+# Edit report
+curl -X POST "http://localhost:8000/api/v1/review/{task_id}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "edit",
+    "task_id": "{task_id}",
+    "edited_report": "Your edited report content here..."
+  }'
+
+# Reject report
+curl -X POST "http://localhost:8000/api/v1/review/{task_id}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "reject",
+    "task_id": "{task_id}",
+    "rejection_reason": "Report does not meet quality standards"
+  }'
+```
+
+#### Debug Endpoint
+
+```bash
+# Get detailed task information for debugging
+curl "http://localhost:8000/api/v1/debug/{task_id}"
+```
+
+### 7. Run Tests
+
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-cov
+
+# Run all API tests
+pytest tests/test_api.py -v
+
+# Run specific test
+pytest tests/test_api.py::test_submit_valid_query -v
+
+# Run tests with coverage
+pytest tests/test_api.py --cov=src/api --cov-report=html
+
+# Run all tests in tests directory
+pytest tests/ -v
+
+# Run tests with output
+pytest tests/test_api.py -v -s
+```
+
+### 8. Run Research Workflow (Command Line)
+
+```bash
+# Run complete workflow with query as argument
+python scripts/run_research_workflow.py "What are attention mechanisms in transformers?"
+
+# Run interactively (will prompt for query)
+python scripts/run_research_workflow.py
+
+# Run full pipeline demonstration
+python scripts/demo_full_pipeline.py
+```
+
+### 9. Test Individual Agents
+
+```bash
+# Test search agent
+python test_search_results.py
+
+# Test synthesis agent
+python test_synthesis_agent.py
+
+# Test validation agent
+python test_validation_agent.py
+
+# Test HITL review (full pipeline)
+python test_hitl_review.py
+```
+
+### 10. Database Management
+
+```bash
+# Database is automatically created at: data/tasks.db
+# To reset database, delete the file:
+# On Windows:
+del data\tasks.db
+# On Linux/Mac:
+rm data/tasks.db
+
+# Database will be recreated on next API start
+```
+
+### 11. View Logs
+
+```bash
+# Agent logs
+cat src/logs/search_agent.log
+cat src/logs/synthesis_agent.log
+cat src/logs/validation_agent.log
+cat src/logs/hitl_review.log
+
+# Cost tracking
+cat logs/cost_tracking.json
+
+# API logs (if configured)
+# Logs are output to console when running the server
+```
+
+### 12. Health Check
+
+```bash
+# Basic health check
+curl http://localhost:8000/health
+
+# Detailed health check with service status
+curl http://localhost:8000/api/v1/health
+```
+
+## Complete Setup Workflow
+
+Here's the complete sequence to get everything running:
+
+```bash
+# 1. Clone/navigate to project
+cd "final project/ai-research-assistant"
+
+# 2. Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Create .env file with your API keys
+# (Edit .env file with your credentials)
+
+# 5. Set up S3 bucket
+python scripts/setup_s3.py
+
+# 6. Ingest papers (optional, for testing)
+python scripts/ingest_arxiv_papers.py --max-papers 100
+
+# 7. Start API server
+python src/api/main.py
+
+# 8. In another terminal, test the API
+curl -X POST "http://localhost:8000/api/v1/research" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is machine learning?", "depth": "standard"}'
+
+# 9. Run tests
+pytest tests/test_api.py -v
+```
 
 ## Project Structure
 
@@ -508,3 +801,169 @@ The next milestone focuses on user interface and production deployment:
    - Parallel processing
    - Response time improvements
    - Cost optimization
+
+## API Reference
+
+### Base URL
+```
+http://localhost:8000
+```
+
+### Authentication
+Currently, the API does not require authentication. Rate limiting is applied per IP address.
+
+### Rate Limits
+- `/api/v1/research`: 5 requests/minute per IP
+- `/api/v1/status`: 30 requests/minute per IP
+- `/api/v1/report`: 10 requests/minute per IP
+- Other endpoints: 60 requests/minute per IP
+
+### Common Response Codes
+- `200 OK`: Request successful
+- `201 Created`: Resource created successfully
+- `400 Bad Request`: Invalid request or task failed
+- `404 Not Found`: Resource not found
+- `409 Conflict`: Task not in required state
+- `422 Validation Error`: Request validation failed
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server error
+
+## Troubleshooting
+
+### API Server Won't Start
+
+```bash
+# Check if port 8000 is already in use
+# On Windows:
+netstat -ano | findstr :8000
+# On Linux/Mac:
+lsof -i :8000
+
+# Use a different port
+uvicorn src.api.main:app --port 8001
+```
+
+### Database Errors
+
+```bash
+# Delete and recreate database
+rm data/tasks.db  # Linux/Mac
+del data\tasks.db  # Windows
+
+# Database will be recreated on next API start
+```
+
+### Import Errors
+
+```bash
+# Make sure you're in the project root directory
+cd "final project/ai-research-assistant"
+
+# Verify Python path
+python -c "import sys; print(sys.path)"
+
+# Reinstall dependencies
+pip install -r requirements.txt --force-reinstall
+```
+
+### Workflow Not Completing
+
+```bash
+# Check server logs for errors
+# Look for error messages in the terminal where the server is running
+
+# Check task status
+curl "http://localhost:8000/api/v1/debug/{task_id}"
+
+# Verify environment variables are set
+python -c "import os; print('OPENAI_API_KEY:', bool(os.getenv('OPENAI_API_KEY')))"
+```
+
+### Rate Limiting Issues
+
+```bash
+# Check rate limit headers in response
+curl -v "http://localhost:8000/api/v1/research" \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"query": "test query"}'
+
+# Look for X-RateLimit-Limit and X-RateLimit-Remaining headers
+```
+
+## Development Commands
+
+### Code Formatting
+
+```bash
+# Install formatting tools
+pip install black isort
+
+# Format code
+black src/ tests/
+isort src/ tests/
+```
+
+### Type Checking
+
+```bash
+# Install type checker
+pip install mypy
+
+# Run type checking
+mypy src/
+```
+
+### Linting
+
+```bash
+# Install linter
+pip install flake8 pylint
+
+# Run linting
+flake8 src/ tests/
+pylint src/
+```
+
+## Production Deployment
+
+### Environment Variables for Production
+
+```bash
+# Set production environment
+export APP_ENV=production
+export DEBUG=false
+
+# Use production database
+export TASK_DB_PATH=/var/lib/ai-research/tasks.db
+
+# Configure CORS for production domain
+# Edit src/api/middleware.py get_cors_middleware_config()
+```
+
+### Running with Gunicorn (Production)
+
+```bash
+# Install gunicorn
+pip install gunicorn
+
+# Run with gunicorn
+gunicorn src.api.main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 120
+```
+
+### Docker Deployment (Future)
+
+```bash
+# Build Docker image (when Dockerfile is created)
+docker build -t ai-research-assistant .
+
+# Run container
+docker run -p 8000:8000 \
+  -e OPENAI_API_KEY=your_key \
+  -e PINECONE_API_KEY=your_key \
+  ai-research-assistant
+```

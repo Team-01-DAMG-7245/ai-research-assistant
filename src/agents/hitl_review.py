@@ -14,6 +14,7 @@ A Streamlit UI will be built in M4 for production use.
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from typing import Any, Dict
@@ -88,13 +89,42 @@ def _display_validation_info(validation_result: Dict[str, Any], confidence_score
     print("=" * 70)
 
 
+def _is_interactive_mode() -> bool:
+    """
+    Check if running in interactive mode (TTY available).
+    
+    Returns:
+        True if running interactively, False if in API/background mode
+    """
+    # Check environment variable for API mode FIRST (takes precedence)
+    if os.getenv("API_MODE", "").lower() in ["true", "1", "yes"]:
+        return False
+    # Check if stdin is a TTY (interactive terminal)
+    # In background/thread pool execution, stdin is typically not a TTY
+    if hasattr(sys.stdin, 'isatty'):
+        try:
+            return sys.stdin.isatty()
+        except (AttributeError, OSError):
+            # If stdin is not available or not a TTY, assume non-interactive
+            return False
+    # Default to non-interactive if we can't determine
+    return False
+
+
 def _prompt_user_action() -> str:
     """
     Prompt user for review action.
+    
+    In non-interactive mode (API), automatically approves the report.
 
     Returns:
         User's choice: 'approve', 'edit', or 'reject'.
     """
+    # Check if running in interactive mode
+    if not _is_interactive_mode():
+        logger.info("Non-interactive mode detected (API mode). Auto-approving report.")
+        return 'approve'
+    
     print("\n" + "=" * 70)
     print("HUMAN REVIEW REQUIRED")
     print("=" * 70)
@@ -177,8 +207,12 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
     start_time = time.time()
     task_id = state.get("task_id", "unknown")
     
+    # Check API mode early and log it
+    is_interactive = _is_interactive_mode()
+    api_mode_env = os.getenv("API_MODE", "not set")
     logger.info("=" * 70)
-    logger.info("HITL REVIEW - Entry | task_id=%s", task_id)
+    logger.info("HITL REVIEW - Entry | task_id=%s | interactive_mode=%s | API_MODE=%s", 
+                task_id, is_interactive, api_mode_env)
     logger.debug("Input state keys: %s", list(state.keys()))
     
     new_state = dict(state)
@@ -208,16 +242,64 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
 
         logger.info("HITL review started | task_id=%s | confidence=%.2f", task_id, confidence_score)
 
-        # 2) Extract required information
+        # 2) Check for errors from previous stages first
+        previous_error = state.get("error")
+        if previous_error:
+            logger.warning(
+                "Previous error detected in state, skipping HITL review | task_id=%s | error=%s",
+                task_id, previous_error
+            )
+            # In non-interactive mode, propagate the error
+            if not _is_interactive_mode():
+                new_state["final_report"] = ""
+                new_state["error"] = previous_error
+                return new_state
+        
+        # 3) Extract required information
         report_draft = state.get("report_draft", "")
         validation_result = state.get("validation_result", {})
         confidence_score = state.get("confidence_score", 0.0)
 
-        if not report_draft:
-            error_msg = "report_draft is required for HITL review"
-            log_error_with_context(logger, ValueError(error_msg), "hitl_review_node", task_id=task_id)
-            new_state["error"] = error_msg
-            return new_state
+        # If report_draft is missing or empty, try to use final_report or any other report field
+        if not report_draft or (isinstance(report_draft, str) and len(report_draft.strip()) == 0):
+            # Try to get final_report as fallback
+            final_report = state.get("final_report", "")
+            if final_report:
+                logger.warning(
+                    "report_draft missing, using final_report | task_id=%s",
+                    task_id
+                )
+                report_draft = final_report
+            else:
+                # Try to find any report-like field in the state
+                for key in ["report", "synthesis_report", "draft_report"]:
+                    potential_report = state.get(key, "")
+                    if potential_report and isinstance(potential_report, str) and len(potential_report) > 0:
+                        logger.warning(
+                            "report_draft missing, using %s | task_id=%s",
+                            key, task_id
+                        )
+                        report_draft = potential_report
+                        break
+                
+                # If still no report found
+                if not report_draft:
+                    # In non-interactive mode, this indicates a synthesis failure
+                    if not _is_interactive_mode():
+                        error_msg = "Synthesis agent failed to generate report_draft. Cannot proceed with HITL review."
+                        logger.error(
+                            "No report found in state for HITL review in API mode | task_id=%s | state_keys=%s | error=%s",
+                            task_id, list(state.keys()), error_msg
+                        )
+                        # Set error to indicate synthesis failure
+                        new_state["error"] = error_msg
+                        new_state["final_report"] = ""
+                        return new_state
+                    else:
+                        error_msg = "report_draft is required for HITL review"
+                        log_error_with_context(logger, ValueError(error_msg), "hitl_review_node", task_id=task_id)
+                        new_state["error"] = error_msg
+                        return new_state
 
         logger.info(
             "Review information | report_length=%d chars | word_count=%d | confidence=%.2f",
@@ -226,12 +308,18 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
             confidence_score,
         )
 
-        # 3) Display report and validation info
-        _display_report_summary(report_draft)
-        _display_validation_info(validation_result, confidence_score)
+        # 3) Display report and validation info (only in interactive mode)
+        if _is_interactive_mode():
+            _display_report_summary(report_draft)
+            _display_validation_info(validation_result, confidence_score)
+        else:
+            logger.info("Skipping display (non-interactive mode)")
 
-        # 4) Prompt user for action
-        logger.info("Waiting for user input...")
+        # 4) Prompt user for action (or auto-approve in API mode)
+        if _is_interactive_mode():
+            logger.info("Waiting for user input...")
+        else:
+            logger.info("Non-interactive mode: auto-approving report")
         action = _prompt_user_action()
         logger.info("User action received: %s", action)
 

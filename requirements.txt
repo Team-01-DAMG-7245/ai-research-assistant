@@ -39,5 +39,13 @@ pinecone
 openai>=1.0.0
 tiktoken>=0.5.0
 
+# LangGraph (for multi-agent workflow)
+langgraph>=0.0.20
+
 # Airflow
 apache-airflow==2.8.1 --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.1/constraints-3.9.txt"
+
+# FastAPI (for M4 API)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6

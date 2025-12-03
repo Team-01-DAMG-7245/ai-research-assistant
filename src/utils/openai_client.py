@@ -390,8 +390,11 @@ class OpenAIClient:
         estimated_tokens = self.count_tokens(messages, model)
         self.logger.info(f"Creating chat completion with {estimated_tokens} estimated tokens")
         
+        # Extract task_id from kwargs for logging (don't pass to OpenAI API)
+        task_id = kwargs.pop("task_id", None)
+        
         try:
-            # Make API call
+            # Make API call (task_id removed from kwargs)
             response = self.client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -475,8 +478,11 @@ class OpenAIClient:
         total_tokens = sum(self.count_tokens(t, model) for t in texts)
         self.logger.info(f"Creating embeddings for {len(texts)} text(s) with {total_tokens} estimated tokens")
         
+        # Extract task_id from kwargs for logging (don't pass to OpenAI API)
+        task_id = kwargs.pop("task_id", None)
+        
         try:
-            # Make API call
+            # Make API call (task_id removed from kwargs)
             response = self.client.embeddings.create(
                 model=model,
                 input=texts,
