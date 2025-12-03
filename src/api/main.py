@@ -91,83 +91,9 @@ settings = Settings()
 # Middleware
 # ============================================================================
 
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Middleware to add a unique request ID to each request."""
-    
-    async def dispatch(self, request: Request, call_next):
-        """Add request ID to request and response headers."""
-        request_id = str(uuid.uuid4())
-        request.state.request_id = request_id
-        
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
-
-
-class JSONLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware to log requests and responses in JSON format."""
-    
-    async def dispatch(self, request: Request, call_next):
-        """Log request and response details."""
-        start_time = datetime.now()
-        # Get request_id safely - it should be set by RequestIDMiddleware
-        try:
-            request_id = getattr(request.state, "request_id", "unknown")
-        except AttributeError:
-            request_id = "unknown"
-        
-        # Log request
-        try:
-            logger.info(
-                "Request received",
-                extra={
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": str(request.url.path),
-                    "query_params": dict(request.query_params) if hasattr(request, 'query_params') else {},
-                    "client_host": request.client.host if request.client else None,
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Error logging request: {e}")
-        
-        try:
-            response = await call_next(request)
-            process_time = (datetime.now() - start_time).total_seconds()
-            
-            # Log response
-            try:
-                logger.info(
-                    "Request completed",
-                    extra={
-                        "request_id": request_id,
-                        "method": request.method,
-                        "path": str(request.url.path),
-                        "status_code": response.status_code,
-                        "process_time": process_time,
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"Error logging response: {e}")
-            
-            response.headers["X-Process-Time"] = str(process_time)
-            return response
-            
-        except Exception as e:
-            process_time = (datetime.now() - start_time).total_seconds()
-            logger.error(
-                "Request failed",
-                extra={
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": str(request.url.path),
-                    "error": str(e),
-                    "process_time": process_time,
-                },
-                exc_info=True,
-            )
-            raise
-
+# Note: Middleware classes have been moved to src/api/middleware.py
+# This ErrorHandlingMiddleware is kept here as a fallback for basic error handling
+# The main error handling is done via exception handlers in error_handlers.py
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     """Middleware to handle and format errors consistently."""
@@ -303,22 +229,42 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add middleware (order matters - last added is first executed/outermost)
-# RequestIDMiddleware must run first (outermost) to set request_id
-# ErrorHandlingMiddleware should be outermost to catch all errors
-# JSONLoggingMiddleware runs in the middle and can access request_id
-app.add_middleware(ErrorHandlingMiddleware)  # Added first, runs last (innermost)
-app.add_middleware(JSONLoggingMiddleware)  # Added second, runs middle
-app.add_middleware(RequestIDMiddleware)  # Added last, runs first (outermost) - sets request_id
+# Register exception handlers
+from src.api.error_handlers import register_exception_handlers
+register_exception_handlers(app)
 
-# CORS middleware
+# Import middleware
+from src.api.middleware import (
+    RequestIDMiddleware,
+    LoggingMiddleware,
+    RateLimitMiddleware,
+    CompressionMiddleware,
+    get_cors_middleware_config,
+)
+from src.api.error_handlers import RequestValidationMiddleware
+
+# Add middleware in correct order (last added = first executed/outermost)
+# Order matters: outermost middleware runs first, innermost runs last
+# 
+# Execution order (from outermost to innermost):
+# 1. CompressionMiddleware - compresses responses
+# 2. RequestValidationMiddleware - validates and sanitizes requests
+# 3. RateLimitMiddleware - enforces rate limits
+# 4. CORS Middleware - handles CORS
+# 5. RequestIDMiddleware - generates request IDs
+# 6. LoggingMiddleware - logs requests/responses (needs request_id)
+# 7. ErrorHandlingMiddleware - catches and formats errors (innermost)
+
+app.add_middleware(ErrorHandlingMiddleware)  # Innermost - catches all errors
+app.add_middleware(LoggingMiddleware)  # Logs requests/responses
+app.add_middleware(RequestIDMiddleware)  # Generates request IDs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
-)
+    **get_cors_middleware_config()
+)  # CORS handling
+app.add_middleware(RateLimitMiddleware)  # Rate limiting
+app.add_middleware(RequestValidationMiddleware)  # Request validation
+app.add_middleware(CompressionMiddleware)  # Response compression (outermost)
 
 # Include routers
 from src.api.endpoints import research, review
