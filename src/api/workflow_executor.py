@@ -184,6 +184,8 @@ class WorkflowExecutor:
         Returns:
             Dictionary with review results
         """
+        # Ensure database is initialized
+        self.task_manager._init_database()
         task_manager = self.task_manager
         
         if action == "approve":

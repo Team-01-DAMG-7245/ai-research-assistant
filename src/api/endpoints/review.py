@@ -58,18 +58,27 @@ async def submit_review(
         )
     
     # Process review action
-    workflow_executor = get_workflow_executor()
-    result = await workflow_executor.process_hitl_review(
-        task_id=task_id,
-        action=request.action.value,
-        edited_report=request.edited_report,
-        rejection_reason=request.rejection_reason
-    )
-    
-    if not result.get("success"):
+    try:
+        workflow_executor = get_workflow_executor()
+        result = await workflow_executor.process_hitl_review(
+            task_id=task_id,
+            action=request.action.value,
+            edited_report=request.edited_report,
+            rejection_reason=request.rejection_reason
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get("error", "Failed to process review action")
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error processing review for task {task_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result.get("error", "Failed to process review action")
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error processing review: {str(e)}"
         )
     
     # Get updated task for message

@@ -424,7 +424,6 @@ class TaskManager:
                 WHERE task_id = ?
             ''', (
                 edited_report,
-                0,
                 TaskStatus.COMPLETED.value,
                 "Report edited and approved",
                 now,
