@@ -8,11 +8,19 @@ import os
 import tempfile
 import uuid
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Generator
+from dotenv import load_dotenv
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Load .env file to get real API keys
+project_root = Path(__file__).parent.parent
+env_file = project_root / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
 
 # Set test environment before importing app
 os.environ["APP_ENV"] = "test"
@@ -327,6 +335,10 @@ def test_submit_query_with_different_depths(client: TestClient):
 
 def test_rate_limiting_research_endpoint(client: TestClient):
     """Test rate limiting on research endpoint."""
+    # Reset rate limit buckets to ensure clean state
+    from src.api.middleware import reset_all_rate_limit_buckets
+    reset_all_rate_limit_buckets()
+    
     # Submit 6 requests rapidly (limit is 5 per minute)
     responses = []
     for i in range(6):
@@ -346,7 +358,9 @@ def test_rate_limiting_research_endpoint(client: TestClient):
     # 6th request should be rate limited
     assert responses[5].status_code == 429, "6th request should be rate limited"
     assert "Retry-After" in responses[5].headers
-    assert "rate limit" in responses[5].json()["error"].lower()
+    data = responses[5].json()
+    error_text = data.get("error", data.get("detail", {}).get("error", ""))
+    assert "rate limit" in str(error_text).lower()
 
 
 # ============================================================================

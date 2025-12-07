@@ -34,7 +34,12 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - S3 bronze/silver layer storage
   - PDF text and table extraction
 
-- ✅ **M2**: Vector Search Infrastructure (Complete)
+- ✅ **M2**: Data Pipeline Development (Complete)
+  - arXiv API integration for collecting Computer Science papers
+  - Text extraction and chunking pipeline using PyMuPDF
+  - Parallel processing with Python multiprocessing (10 workers)
+  - Simple pipeline orchestrator (see `scripts/run_full_pipeline.py`)
+  - S3 storage layers (bronze/silver/gold)
   - Pinecone index setup and management
   - Embedding generation with OpenAI
   - Semantic search capabilities
@@ -45,10 +50,13 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - Automated report generation with citations
   - Cost tracking and performance metrics
 
-- 🔄 **M4**: Streamlit UI & Production Deployment (Next)
-  - Interactive web interface
-  - Real-time workflow monitoring
-  - Production deployment and scaling
+- ✅ **M4**: API Development (Complete - Frontend handled by teammate)
+  - FastAPI backend with async request handling
+  - Background task processing
+  - RESTful API endpoints (/api/research, /api/status, /api/report, /api/review)
+  - HITL review interface via API
+  - CORS and rate limiting middleware
+  - SQLite task management
 
 ## Features
 
@@ -56,7 +64,7 @@ See [Quick Start](#quick-start) section below for detailed instructions.
 - **PDF Processing**: Text extraction and table extraction
 - **Vector Search**: Pinecone integration for semantic search
 - **AWS Integration**: S3 storage and processing pipeline
-- **Airflow Orchestration**: Automated workflow management
+- **Pipeline Orchestration**: Simple Python-based pipeline management
 - **Multi-Agent RAG Workflow**: LangGraph-based research report generation
 - **Citation Validation**: Automated citation checking and quality assurance
 - **Human-in-the-Loop (HITL)**: Interactive review for low-confidence reports
@@ -78,9 +86,6 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Or use automated installation script
-python scripts/install_requirements.py
 ```
 
 ### 2. Environment Variables Configuration
@@ -118,18 +123,27 @@ TASK_DB_PATH=data/tasks.db
 python scripts/setup_s3.py
 ```
 
-### 4. Data Ingestion
+### 4. Data Pipeline
+
+You can run the complete pipeline (ingestion → processing → embedding) or individual steps:
 
 ```bash
-# Ingest papers with command-line arguments
-python scripts/ingest_arxiv_papers.py --max-papers 500
+# Run complete pipeline (recommended) - We are using 100 papers to save time and processing power
+python scripts/run_full_pipeline.py --max-papers 100
 
-# Or run interactively (will prompt for number of papers and categories)
-python scripts/ingest_arxiv_papers.py
+# Or run steps individually:
 
-# Ingest specific categories
-python scripts/ingest_arxiv_papers.py --categories cs.AI cs.LG --max-papers 100
+# Step 1: Ingest papers from arXiv
+python scripts/ingest_arxiv_papers.py --max-papers 100
+
+# Step 2: Process PDFs and create chunks (uses 10 workers)
+python scripts/process_all_paper.py
+
+# Step 3: Generate embeddings and upload to Pinecone
+python scripts/embed_chunks_to_pinecone.py
 ```
+
+See `scripts/README_PIPELINE.md` for detailed pipeline documentation and scheduling options.
 
 ### 5. Run the FastAPI Server
 
