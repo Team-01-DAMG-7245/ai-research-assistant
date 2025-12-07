@@ -209,8 +209,17 @@ curl "http://localhost:8000/api/v1/report/{task_id}?format=json"
 # Get report as Markdown
 curl "http://localhost:8000/api/v1/report/{task_id}?format=markdown"
 
-# Get report as PDF (returns URL)
-curl "http://localhost:8000/api/v1/report/{task_id}?format=pdf"
+# Get report as PDF (downloads PDF file)
+curl "http://localhost:8000/api/v1/report/{task_id}?format=pdf" --output report.pdf
+
+# Or using Python requests to save PDF
+python -c "
+import requests
+response = requests.get('http://localhost:8000/api/v1/report/{task_id}?format=pdf')
+with open('report.pdf', 'wb') as f:
+    f.write(response.content)
+print('PDF saved to report.pdf')
+"
 ```
 
 #### Submit HITL Review
@@ -805,7 +814,7 @@ The next milestone focuses on user interface and production deployment:
 
 3. **Enhanced Features**
    - Report templates and customization
-   - Export formats (PDF, Markdown, HTML)
+   - Export formats (PDF ✅, Markdown ✅, HTML)
    - Batch processing capabilities
    - User authentication and history
    - Advanced filtering and search

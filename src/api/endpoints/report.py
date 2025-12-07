@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Path, Query, status
 from fastapi.responses import Response
 
+from src.utils.pdf_generator import markdown_to_pdf
 from ..models import ReportResponse, TaskStatus, ErrorResponse, SourceInfo
 from ..task_manager import get_task_manager
 
@@ -28,7 +29,7 @@ async def get_report(
     Supports JSON, Markdown, and PDF formats
     - json: Returns structured JSON response
     - markdown: Returns plain markdown text
-    - pdf: Returns URL to PDF (future: generates PDF on demand)
+    - pdf: Returns PDF file with formatted report
     """
     # Validate UUID format
     try:
@@ -133,12 +134,52 @@ async def get_report(
             media_type="text/markdown; charset=utf-8"
         )
     elif format == "pdf":
-        # PDF generation not yet implemented - return JSON with message
-        # In future, this could generate PDF and return URL or file
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="PDF format not yet implemented. Please use 'json' or 'markdown' format."
-        )
+        # Generate PDF from markdown report
+        try:
+            # Extract title from report (first line or first heading)
+            title = "Research Report"
+            report_lines = report.split('\n')
+            for line in report_lines[:5]:  # Check first 5 lines
+                line_stripped = line.strip()
+                if line_stripped.startswith('# '):
+                    title = line_stripped[2:].strip()
+                    break
+                elif line_stripped and not line_stripped.startswith('#'):
+                    # Use first non-empty line as potential title
+                    if len(line_stripped) < 100:  # Reasonable title length
+                        title = line_stripped
+                        break
+            
+            # Prepare metadata for PDF
+            metadata = {
+                'task_id': task_id,
+                'confidence_score': float(task.get('confidence_score', 0.0)),
+                'source_count': len(sources),
+                'created_at': created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if created_at else None
+            }
+            
+            # Generate PDF bytes
+            pdf_bytes = markdown_to_pdf(
+                markdown_content=report,
+                title=title,
+                metadata=metadata
+            )
+            
+            # Return PDF as response
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="research_report_{task_id}.pdf"'
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generating PDF for task {task_id}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate PDF: {str(e)}"
+            )
     else:  # json (default)
         return ReportResponse(
             task_id=task_id,
