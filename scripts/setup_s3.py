@@ -50,14 +50,19 @@ def setup_s3_bucket():
         print(f"❌ Error creating bucket: {e}")
         sys.exit(1)
     
-    # Create folder structure
+    # Create folder structure (bronze/silver/gold layers)
     folders = [
+        # Bronze layer (raw data)
         'raw/web/',
         'raw/papers/',
+        # Silver layer (processed data)
         'processed/text_chunks/',
         'processed/tables/',
         'processed/ocr/',
         'embeddings/',
+        # Gold layer (final outputs)
+        'gold/reports/',
+        # Legacy reports folder (for backward compatibility)
         'reports/'
     ]
     

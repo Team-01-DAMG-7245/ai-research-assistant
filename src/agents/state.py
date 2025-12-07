@@ -64,6 +64,9 @@ class ResearchState(TypedDict, total=False):
         current_agent: Name or identifier of the agent currently handling
             the state (e.g., "planner", "search", "retriever",
             "report_writer", "validator").
+        
+        regeneration_count: Number of times the report has been regenerated
+            due to rejection. Used to prevent infinite loops.
     """
 
     task_id: str
@@ -78,6 +81,7 @@ class ResearchState(TypedDict, total=False):
     final_report: str
     error: Optional[str]
     current_agent: str
+    regeneration_count: int
 
 
 __all__ = ["ResearchState"]
