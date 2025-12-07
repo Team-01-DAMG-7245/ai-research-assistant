@@ -1,0 +1,232 @@
+"""
+Workflow Executor for running research workflows in background
+"""
+
+import asyncio
+import logging
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.agents.workflow import compiled_workflow
+from src.agents.state import ResearchState
+from .task_manager import get_task_manager, TaskManager
+from .models import TaskStatus
+
+logger = logging.getLogger(__name__)
+
+# Singleton instance
+_workflow_executor: Optional['WorkflowExecutor'] = None
+
+
+def get_workflow_executor() -> 'WorkflowExecutor':
+    """Get or create the singleton WorkflowExecutor instance"""
+    global _workflow_executor
+    if _workflow_executor is None:
+        _workflow_executor = WorkflowExecutor()
+    return _workflow_executor
+
+
+class WorkflowExecutor:
+    """Executes research workflows in background"""
+    
+    def __init__(self):
+        """Initialize workflow executor"""
+        self.task_manager = get_task_manager()
+        logger.info("WorkflowExecutor initialized")
+    
+    async def execute_research_workflow(
+        self,
+        task_id: str,
+        query: str,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute research workflow asynchronously
+        
+        Args:
+            task_id: Task identifier
+            query: Research query
+            user_id: Optional user identifier
+            
+        Returns:
+            Dictionary with workflow results
+        """
+        try:
+            # Update status to processing
+            self.task_manager.update_task_status(
+                task_id,
+                TaskStatus.PROCESSING,
+                progress=10.0,
+                message="Starting research workflow..."
+            )
+            
+            # Initialize state
+            initial_state: ResearchState = {
+                "task_id": task_id,
+                "user_query": query,
+                "current_agent": "search",
+                "search_queries": [],
+                "search_results": [],
+                "retrieved_chunks": [],
+                "report_draft": "",
+                "validation_result": {},
+                "confidence_score": 0.0,
+                "needs_hitl": False,
+                "final_report": "",
+                "error": None,
+                "regeneration_count": 0,
+            }
+            
+            # Update progress
+            self.task_manager.update_task_status(
+                task_id,
+                TaskStatus.PROCESSING,
+                progress=30.0,
+                message="Running search agent..."
+            )
+            
+            # Run workflow in thread pool to avoid blocking
+            loop = asyncio.get_event_loop()
+            final_state = await loop.run_in_executor(
+                None,
+                lambda: compiled_workflow.invoke(initial_state)
+            )
+            
+            # Check for errors
+            if final_state.get("error"):
+                error_msg = final_state.get("error", "Unknown error")
+                self.task_manager.mark_task_failed(task_id, error_msg)
+                return {
+                    "success": False,
+                    "task_id": task_id,
+                    "error": error_msg
+                }
+            
+            # Extract results
+            final_report = final_state.get("final_report", "")
+            confidence_score = final_state.get("confidence_score", 0.0)
+            original_needs_hitl = final_state.get("needs_hitl", False)
+            
+            # If final_report exists and is not empty, HITL review was completed
+            # (either approved, edited, or auto-approved), so needs_hitl should be False
+            if final_report and final_report.strip():
+                needs_hitl = False  # HITL review completed successfully
+            else:
+                needs_hitl = original_needs_hitl  # Use original value if no final report
+            
+            # Get sources from retrieved chunks
+            retrieved_chunks = final_state.get("retrieved_chunks", [])
+            sources = []
+            for i, chunk in enumerate(retrieved_chunks[:20], 1):  # Limit to top 20
+                sources.append({
+                    "source_id": i,
+                    "title": chunk.get("title", chunk.get("doc_id", "Unknown")),
+                    "url": chunk.get("url", chunk.get("pdf_url", "")),
+                    "relevance_score": 1.0 - (i * 0.02)  # Decreasing relevance
+                })
+            
+            # Store results in database
+            self.task_manager.store_task_result(
+                task_id=task_id,
+                report=final_report,
+                sources=sources,
+                confidence=confidence_score,
+                needs_hitl=needs_hitl,
+                metadata={
+                    "search_queries": final_state.get("search_queries", []),
+                    "num_sources": len(retrieved_chunks),
+                    "user_id": user_id,
+                    "hitl_completed": not original_needs_hitl or (final_report and final_report.strip())
+                }
+            )
+            
+            logger.info(f"Workflow completed for task {task_id}, confidence={confidence_score:.2f}, needs_hitl={needs_hitl}")
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "report": final_report,
+                "confidence": confidence_score,
+                "needs_hitl": needs_hitl,
+                "sources": sources
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error executing workflow for task {task_id}: {e}")
+            self.task_manager.mark_task_failed(task_id, str(e))
+            return {
+                "success": False,
+                "task_id": task_id,
+                "error": str(e)
+            }
+    
+    async def process_hitl_review(
+        self,
+        task_id: str,
+        action: str,
+        edited_report: Optional[str] = None,
+        rejection_reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process HITL review action
+        
+        Args:
+            task_id: Task identifier
+            action: Review action (approve, edit, reject)
+            edited_report: Edited report (for edit action)
+            rejection_reason: Rejection reason (for reject action)
+            
+        Returns:
+            Dictionary with review results
+        """
+        task_manager = self.task_manager
+        
+        if action == "approve":
+            success = task_manager.approve_review(task_id)
+            if success:
+                return {
+                    "success": True,
+                    "task_id": task_id,
+                    "action": "approve"
+                }
+        elif action == "edit":
+            if not edited_report:
+                return {
+                    "success": False,
+                    "error": "edited_report is required for edit action"
+                }
+            success = task_manager.edit_review(task_id, edited_report)
+            if success:
+                return {
+                    "success": True,
+                    "task_id": task_id,
+                    "action": "edit"
+                }
+        elif action == "reject":
+            if not rejection_reason:
+                return {
+                    "success": False,
+                    "error": "rejection_reason is required for reject action"
+                }
+            success = task_manager.reject_review(task_id, rejection_reason)
+            if success:
+                return {
+                    "success": True,
+                    "task_id": task_id,
+                    "action": "reject"
+                }
+        else:
+            return {
+                "success": False,
+                "error": f"Invalid action: {action}"
+            }
+        
+        return {
+            "success": False,
+            "error": "Task not found or not in pending review status"
+        }

@@ -56,6 +56,38 @@ def set_final_report_node(state: ResearchState) -> ResearchState:
     return new_state
 
 
+def handle_max_retries_node(state: ResearchState) -> ResearchState:
+    """
+    Helper node to handle max regeneration retries exceeded.
+
+    Sets a clear error message and returns state to end workflow.
+
+    Args:
+        state: Current ResearchState.
+
+    Returns:
+        Updated ResearchState with error set.
+    """
+    task_id = state.get("task_id", "unknown")
+    regeneration_count = state.get("regeneration_count", 0)
+    new_state = dict(state)
+    new_state["error"] = f"Max regeneration attempts ({regeneration_count}) exceeded. Report could not be improved after multiple attempts."
+    new_state["final_report"] = ""
+    logger.error(
+        "Max regenerations exceeded, ending workflow | task_id=%s | attempts=%d",
+        task_id,
+        regeneration_count,
+    )
+    log_state_transition(
+        logger,
+        from_state="hitl_review",
+        to_state="end",
+        task_id=task_id,
+        action="max_retries_exceeded",
+    )
+    return new_state
+
+
 def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_final_report"]:
     """
     Conditional routing function after validation agent.
@@ -102,6 +134,83 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
         return "set_final_report"
 
 
+def route_after_hitl(state: ResearchState) -> Literal["search", "set_final_report", "handle_max_retries"]:
+    """
+    Conditional routing function after HITL review.
+
+    Routes based on HITL review outcome:
+    - If rejected and retry count < max: route back to search for regeneration
+    - If rejected and retry count >= max: end with error
+    - If approved/edited: route to set_final_report
+
+    Args:
+        state: Current ResearchState.
+
+    Returns:
+        "search" if regeneration needed, "set_final_report" if approved/edited, "end" if max retries exceeded.
+    """
+    task_id = state.get("task_id", "unknown")
+    error = state.get("error", "")
+    final_report = state.get("final_report", "")
+    regeneration_count = state.get("regeneration_count", 0)
+    MAX_REGENERATIONS = 2  # Maximum number of regeneration attempts
+    
+    # Check if report was rejected
+    is_rejected = error and "rejected" in error.lower() and "regeneration" in error.lower()
+    
+    if is_rejected:
+        # regeneration_count was already incremented in HITL node
+        if regeneration_count <= MAX_REGENERATIONS:
+            # Reset state for regeneration (clear previous results but keep query)
+            logger.info(
+                "Report rejected, regenerating | task_id=%s | attempt=%d/%d",
+                task_id,
+                regeneration_count,
+                MAX_REGENERATIONS,
+            )
+            log_state_transition(
+                logger,
+                from_state="hitl_review",
+                to_state="search",
+                task_id=task_id,
+                action="regenerate",
+                regeneration_count=regeneration_count,
+            )
+            # Return "search" to restart the workflow
+            return "search"
+        else:
+            # Max retries exceeded, end with error
+            logger.error(
+                "Max regenerations exceeded | task_id=%s | attempts=%d",
+                task_id,
+                regeneration_count,
+            )
+            return "handle_max_retries"
+    elif final_report and final_report.strip():
+        # Report was approved or edited, proceed to final
+        logger.info(
+            "HITL review completed successfully | task_id=%s",
+            task_id,
+        )
+        log_state_transition(
+            logger,
+            from_state="hitl_review",
+            to_state="set_final_report",
+            task_id=task_id,
+            action="approved_or_edited",
+        )
+        return "set_final_report"
+    else:
+        # Unexpected state, end with error
+        logger.warning(
+            "Unexpected HITL review state | task_id=%s | error=%s | final_report=%s",
+            task_id,
+            error,
+            bool(final_report),
+        )
+        return "handle_max_retries"
+
+
 def build_workflow() -> StateGraph:
     """
     Build the complete research agent workflow graph.
@@ -111,8 +220,12 @@ def build_workflow() -> StateGraph:
         2. synthesis_agent
         3. validation_agent
         4. Conditional routing:
-           - If needs_hitl=True → hitl_review → END
+           - If needs_hitl=True → hitl_review
            - If needs_hitl=False → set_final_report → END
+        5. After HITL review, conditional routing:
+           - If rejected and retries < max → search (regeneration)
+           - If rejected and retries >= max → END (error)
+           - If approved/edited → set_final_report → END
 
     Returns:
         Compiled StateGraph ready for execution.
@@ -126,6 +239,7 @@ def build_workflow() -> StateGraph:
     workflow.add_node("validation", validation_agent_node)
     workflow.add_node("hitl_review", hitl_review_node)
     workflow.add_node("set_final_report", set_final_report_node)
+    workflow.add_node("handle_max_retries", handle_max_retries_node)
 
     # Set entry point
     workflow.set_entry_point("search")
@@ -144,9 +258,20 @@ def build_workflow() -> StateGraph:
         },
     )
     
-    # Both hitl_review and set_final_report go to END
-    workflow.add_edge("hitl_review", END)
+    # Conditional edge: hitl_review → search (regenerate) or set_final_report or END
+    workflow.add_conditional_edges(
+        "hitl_review",
+        route_after_hitl,
+        {
+            "search": "search",  # Regenerate: loop back to search
+            "set_final_report": "set_final_report",  # Approved/edited: proceed to final
+            "handle_max_retries": "handle_max_retries",  # Max retries exceeded: handle error
+        },
+    )
+    
+    # set_final_report and handle_max_retries go to END
     workflow.add_edge("set_final_report", END)
+    workflow.add_edge("handle_max_retries", END)
 
     logger.info("Research agent workflow graph built successfully")
     return workflow
@@ -174,6 +299,7 @@ __all__ = [
     "compile_workflow",
     "compiled_workflow",
     "route_after_validation",
+    "route_after_hitl",
     "set_final_report_node",
 ]
 

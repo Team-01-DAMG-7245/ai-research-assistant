@@ -359,12 +359,21 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
         elif action == 'reject':
             new_state["final_report"] = ""
             new_state["error"] = "Report rejected by human reviewer. Regeneration required."
+            # Increment regeneration count
+            current_count = state.get("regeneration_count", 0)
+            new_state["regeneration_count"] = current_count + 1
+            # Clear previous results to allow fresh regeneration
+            new_state["search_results"] = []
+            new_state["retrieved_chunks"] = []
+            new_state["report_draft"] = ""
+            new_state["validation_result"] = {}
             logger.info(
-                "HITL review: REJECTED | task_id=%s | confidence=%.2f",
+                "HITL review: REJECTED | task_id=%s | confidence=%.2f | regeneration_count=%d",
                 task_id,
                 confidence_score,
+                new_state["regeneration_count"],
             )
-            print("\n[REJECTED] Report rejected. Error flag set for regeneration.")
+            print(f"\n[REJECTED] Report rejected. Will regenerate (attempt {new_state['regeneration_count']}).")
 
         else:
             # Should not happen, but handle gracefully

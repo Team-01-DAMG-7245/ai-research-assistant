@@ -1,471 +1,146 @@
 """
-Middleware for the AI Research Assistant API.
-
-This module provides:
-- Request ID generation and tracking
-- Structured request/response logging
-- Rate limiting with token bucket algorithm
-- CORS configuration
-- Response compression
+FastAPI Middleware for CORS, rate limiting, and error handling
 """
 
-import gzip
-import json
-import logging
+import os
 import time
-import uuid
+import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Callable, Dict, Optional, Tuple
-from threading import Lock
-
+from typing import Callable
 from fastapi import Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response as StarletteResponse
 
 logger = logging.getLogger(__name__)
 
-# ============================================================================
-# Request ID Middleware
-# ============================================================================
+# Rate limit storage (in-memory, per IP)
+_rate_limit_buckets: dict = defaultdict(lambda: {"count": 0, "reset_time": 0})
 
 
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware to generate and track unique request IDs.
-    
-    Adds X-Request-ID header to all requests and responses for request tracing.
-    """
-    
-    async def dispatch(self, request: Request, call_next: Callable):
-        """Process request and add request ID."""
-        # Generate or extract request ID
-        request_id = request.headers.get("X-Request-ID")
-        if not request_id:
-            request_id = str(uuid.uuid4())
-        
-        # Add to request state for use in other middleware/endpoints
-        request.state.request_id = request_id
-        
-        # Process request
-        response = await call_next(request)
-        
-        # Add request ID to response headers
-        response.headers["X-Request-ID"] = request_id
-        
-        return response
-
-
-# ============================================================================
-# Logging Middleware
-# ============================================================================
-
-
-class LoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware for structured request/response logging.
-    
-    Logs:
-    - Request: method, path, query params, user_id, request_id
-    - Response: status code, duration
-    - Uses JSON format for structured logging
-    - Excludes sensitive data (API keys, full queries)
-    """
-    
-    # Sensitive headers to exclude from logs
-    SENSITIVE_HEADERS = {
-        'authorization', 'api-key', 'x-api-key', 'cookie',
-        'x-auth-token', 'access-token', 'secret'
-    }
-    
-    # Sensitive query parameters to exclude
-    SENSITIVE_QUERY_PARAMS = {
-        'api_key', 'token', 'password', 'secret', 'auth'
-    }
-    
-    # Maximum query length to log (truncate longer queries)
-    MAX_QUERY_LENGTH = 200
-    
-    async def dispatch(self, request: Request, call_next: Callable):
-        """Process request and log request/response."""
-        start_time = time.time()
-        request_id = getattr(request.state, 'request_id', 'unknown')
-        
-        # Extract user_id from headers or query params (if available)
-        user_id = (
-            request.headers.get("X-User-ID") or
-            request.query_params.get("user_id") or
-            "anonymous"
-        )
-        
-        # Build request log data
-        request_log = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "type": "request",
-            "request_id": request_id,
-            "method": request.method,
-            "path": request.url.path,
-            "query_params": self._sanitize_query_params(dict(request.query_params)),
-            "user_id": user_id,
-            "client_ip": request.client.host if request.client else None,
-            "user_agent": request.headers.get("user-agent", "")[:100],  # Truncate
-        }
-        
-        # Log request
-        logger.info(f"Request received | {json.dumps(request_log)}")
-        
-        # Process request
-        try:
-            response = await call_next(request)
-            status_code = response.status_code
-            error = None
-        except Exception as e:
-            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            error = str(e)
-            raise
-        finally:
-            # Calculate duration
-            duration = time.time() - start_time
-            
-            # Build response log data
-            response_log = {
-                "timestamp": datetime.utcnow().isoformat(),
-                "type": "response",
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": status_code,
-                "duration_ms": round(duration * 1000, 2),
-                "user_id": user_id,
-            }
-            
-            if error:
-                response_log["error"] = error
-            
-            # Log response
-            logger.info(f"Request completed | {json.dumps(response_log)}")
-        
-        return response
-    
-    def _sanitize_query_params(self, params: Dict[str, str]) -> Dict[str, str]:
-        """Sanitize query parameters, removing sensitive data."""
-        sanitized = {}
-        for key, value in params.items():
-            key_lower = key.lower()
-            
-            # Skip sensitive parameters
-            if key_lower in self.SENSITIVE_QUERY_PARAMS:
-                sanitized[key] = "[REDACTED]"
-            # Truncate long values (like queries)
-            elif len(value) > self.MAX_QUERY_LENGTH:
-                sanitized[key] = value[:self.MAX_QUERY_LENGTH] + "...[TRUNCATED]"
-            else:
-                sanitized[key] = value
-        
-        return sanitized
-
-
-# ============================================================================
-# Rate Limiting Middleware (Token Bucket Algorithm)
-# ============================================================================
-
-
-class TokenBucket:
-    """
-    Token bucket for rate limiting.
-    
-    Implements the token bucket algorithm:
-    - Tokens are added at a constant rate (refill_rate per second)
-    - Each request consumes one token
-    - Requests are allowed if tokens are available
-    """
-    
-    def __init__(self, capacity: int, refill_rate: float):
-        """
-        Initialize token bucket.
-        
-        Args:
-            capacity: Maximum number of tokens (burst capacity)
-            refill_rate: Tokens added per second
-        """
-        self.capacity = capacity
-        self.refill_rate = refill_rate
-        self.tokens = float(capacity)
-        self.last_refill = time.time()
-        self.lock = Lock()
-    
-    def consume(self, tokens: int = 1) -> Tuple[bool, float]:
-        """
-        Try to consume tokens from the bucket.
-        
-        Args:
-            tokens: Number of tokens to consume (default: 1)
-            
-        Returns:
-            Tuple of (success, retry_after_seconds)
-            - success: True if tokens were available, False otherwise
-            - retry_after_seconds: Seconds until tokens will be available (0 if success)
-        """
-        with self.lock:
-            now = time.time()
-            elapsed = now - self.last_refill
-            
-            # Refill tokens based on elapsed time
-            self.tokens = min(
-                self.capacity,
-                self.tokens + (elapsed * self.refill_rate)
-            )
-            self.last_refill = now
-            
-            # Check if enough tokens are available
-            if self.tokens >= tokens:
-                self.tokens -= tokens
-                return True, 0.0
-            else:
-                # Calculate retry after
-                tokens_needed = tokens - self.tokens
-                retry_after = tokens_needed / self.refill_rate
-                return False, retry_after
+def reset_all_rate_limit_buckets():
+    """Reset all rate limit buckets (for testing)"""
+    global _rate_limit_buckets
+    _rate_limit_buckets.clear()
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """
-    Rate limiting middleware using token bucket algorithm.
+    """Rate limiting middleware"""
     
-    Rate limits:
-    - /api/v1/research: 5 requests/minute per IP
-    - /api/v1/status: 30 requests/minute per IP
-    - /api/v1/report: 10 requests/minute per IP
-    - Other endpoints: 60 requests/minute per IP (default)
-    """
-    
-    # Rate limit configurations: (capacity, refill_rate_per_second)
-    RATE_LIMITS = {
-        "/api/v1/research": (5, 5.0 / 60.0),  # 5 per minute
-        "/api/v1/status": (30, 30.0 / 60.0),  # 30 per minute
-        "/api/v1/report": (10, 10.0 / 60.0),  # 10 per minute
-    }
-    
-    # Default rate limit: 60 per minute
-    DEFAULT_LIMIT = (60, 60.0 / 60.0)
-    
-    # Paths to exclude from rate limiting
-    EXCLUDED_PATHS = ['/health', '/docs', '/openapi.json', '/redoc', '/']
-    
-    def __init__(self, app):
+    def __init__(self, app, requests_per_minute: int = 60):
         super().__init__(app)
-        # Store token buckets per IP address
-        # Format: {ip: {path: TokenBucket}}
-        self.buckets: Dict[str, Dict[str, TokenBucket]] = defaultdict(dict)
-        self.buckets_lock = Lock()
-        
-        # Cleanup old buckets periodically (every 5 minutes)
-        self.last_cleanup = time.time()
-        self.cleanup_interval = 300  # 5 minutes
+        self.requests_per_minute = requests_per_minute
+        # Per-endpoint limits
+        self.endpoint_limits = {
+            "/api/v1/research": 5,  # 5 requests per minute
+            "/api/v1/status": 30,   # 30 requests per minute
+            "/api/v1/report": 10,   # 10 requests per minute
+            "/api/v1/review": 20,   # 20 requests per minute
+        }
     
-    def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP address from request."""
-        # Check for forwarded IP (from proxy/load balancer)
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # Take the first IP in the chain
-            return forwarded_for.split(",")[0].strip()
-        
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-        
-        # Fallback to direct client IP
-        if request.client:
-            return request.client.host
-        
-        return "unknown"
-    
-    def _get_rate_limit(self, path: str) -> Tuple[int, float]:
-        """Get rate limit configuration for a path."""
-        # Check exact match first
-        if path in self.RATE_LIMITS:
-            return self.RATE_LIMITS[path]
-        
-        # Check prefix match
-        for limit_path, limit_config in self.RATE_LIMITS.items():
-            if path.startswith(limit_path):
-                return limit_config
-        
-        # Default limit
-        return self.DEFAULT_LIMIT
-    
-    def _get_or_create_bucket(self, ip: str, path: str) -> TokenBucket:
-        """Get or create a token bucket for an IP and path."""
-        with self.buckets_lock:
-            if path not in self.buckets[ip]:
-                capacity, refill_rate = self._get_rate_limit(path)
-                self.buckets[ip][path] = TokenBucket(capacity, refill_rate)
-            return self.buckets[ip][path]
-    
-    def _cleanup_old_buckets(self):
-        """Remove old buckets to prevent memory leaks."""
-        now = time.time()
-        if now - self.last_cleanup < self.cleanup_interval:
-            return
-        
-        with self.buckets_lock:
-            # Remove IPs with no active buckets (simple cleanup)
-            # In production, you might want more sophisticated cleanup
-            self.last_cleanup = now
-    
-    async def dispatch(self, request: Request, call_next: Callable):
-        """Process request with rate limiting."""
-        # Skip rate limiting for excluded paths
-        if any(request.url.path.startswith(path) for path in self.EXCLUDED_PATHS):
-            return await call_next(request)
-        
-        # Get client IP
-        client_ip = self._get_client_ip(request)
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Check rate limits before processing request"""
+        client_ip = request.client.host if request.client else "unknown"
         path = request.url.path
         
-        # Cleanup old buckets periodically
-        self._cleanup_old_buckets()
+        # Get limit for this endpoint (default to general limit)
+        limit = self.endpoint_limits.get(path, self.requests_per_minute)
         
-        # Get or create token bucket for this IP and path
-        bucket = self._get_or_create_bucket(client_ip, path)
+        # Get or create bucket for this IP
+        bucket = _rate_limit_buckets[f"{client_ip}:{path}"]
+        current_time = time.time()
         
-        # Try to consume a token
-        allowed, retry_after = bucket.consume(1)
+        # Reset if time window expired
+        if current_time >= bucket["reset_time"]:
+            bucket["count"] = 0
+            bucket["reset_time"] = current_time + 60  # 1 minute window
         
-        if not allowed:
-            # Rate limit exceeded
-            logger.warning(
-                f"Rate limit exceeded | ip: {client_ip} | path: {path} | retry_after: {retry_after:.2f}s"
-            )
-            
-            from fastapi.responses import JSONResponse
-            from src.api.models import ErrorResponse
-            
+        # Check if limit exceeded
+        if bucket["count"] >= limit:
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content=ErrorResponse(
-                    error="Rate limit exceeded",
-                    detail=f"Too many requests. Please try again after {int(retry_after) + 1} seconds.",
-                    timestamp=datetime.utcnow()
-                ).model_dump(),
+                content={
+                    "error": "Rate limit exceeded",
+                    "detail": f"Maximum {limit} requests per minute for this endpoint"
+                },
                 headers={
-                    "Retry-After": str(int(retry_after) + 1),
-                    "X-RateLimit-Limit": str(bucket.capacity),
+                    "X-RateLimit-Limit": str(limit),
                     "X-RateLimit-Remaining": "0",
+                    "Retry-After": str(int(bucket["reset_time"] - current_time))
                 }
             )
         
-        # Add rate limit headers to response
-        response = await call_next(request)
-        response.headers["X-RateLimit-Limit"] = str(bucket.capacity)
-        response.headers["X-RateLimit-Remaining"] = str(int(bucket.tokens))
-        
-        return response
-
-
-# ============================================================================
-# Compression Middleware
-# ============================================================================
-
-
-class CompressionMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware to compress responses using gzip.
-    
-    Compresses responses larger than 1KB to reduce bandwidth.
-    """
-    
-    MIN_SIZE = 1024  # 1KB minimum size to compress
-    CONTENT_TYPES_TO_COMPRESS = {
-        'application/json',
-        'application/javascript',
-        'text/html',
-        'text/css',
-        'text/plain',
-        'text/xml',
-        'text/markdown',
-        'application/xml',
-    }
-    
-    async def dispatch(self, request: Request, call_next: Callable):
-        """Process request and compress response if applicable."""
-        # Check if client accepts gzip encoding
-        accept_encoding = request.headers.get("Accept-Encoding", "")
-        if "gzip" not in accept_encoding.lower():
-            return await call_next(request)
+        # Increment counter
+        bucket["count"] += 1
         
         # Process request
         response = await call_next(request)
         
-        # Skip compression for certain response types
-        if not isinstance(response, StarletteResponse):
-            return response
+        # Add rate limit headers
+        response.headers["X-RateLimit-Limit"] = str(limit)
+        response.headers["X-RateLimit-Remaining"] = str(limit - bucket["count"])
         
-        # Skip if already compressed
-        if response.headers.get("Content-Encoding"):
-            return response
-        
-        # Skip for streaming responses (hard to compress)
-        if hasattr(response, "body_iterator") and not hasattr(response, "body"):
-            return response
-        
-        # Skip compression for small responses or non-compressible types
-        content_type = response.headers.get("Content-Type", "")
-        if not any(ct in content_type for ct in self.CONTENT_TYPES_TO_COMPRESS):
-            return response
-        
-        # For now, skip compression to avoid Content-Length issues
-        # Compression can be enabled later with proper response body handling
-        # The issue is that FastAPI responses need special handling for body reading
         return response
 
 
-# ============================================================================
-# CORS Configuration
-# ============================================================================
-
-
-def get_cors_middleware_config() -> dict:
-    """
-    Get CORS middleware configuration.
+def get_cors_middleware_config():
+    """Get CORS middleware configuration"""
+    import os
+    app_env = os.getenv("APP_ENV", "development")
     
-    Returns:
-        Dictionary with CORS configuration
-    """
+    if app_env == "production":
+        # In production, specify allowed origins
+        allowed_origins = os.getenv("CORS_ORIGINS", "").split(",")
+        if not allowed_origins or allowed_origins == [""]:
+            allowed_origins = ["https://yourdomain.com"]
+    else:
+        # In development, allow all origins
+        allowed_origins = ["*"]
+    
     return {
-        "allow_origins": [
-            "http://localhost:8501",  # Streamlit default port
-            "http://127.0.0.1:8501",
-            "http://localhost:3000",  # Common React dev port
-            "http://127.0.0.1:3000",
-        ],
+        "allow_origins": allowed_origins,
         "allow_credentials": True,
-        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": [
-            "Content-Type",
-            "Authorization",
-            "X-Request-ID",
-            "X-User-ID",
-            "Accept",
-            "Accept-Encoding",
-        ],
-        "expose_headers": [
-            "X-Request-ID",
-            "X-RateLimit-Limit",
-            "X-RateLimit-Remaining",
-            "Retry-After",
-        ],
-        "max_age": 3600,  # Cache preflight requests for 1 hour
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
     }
 
 
-__all__ = [
-    "RequestIDMiddleware",
-    "LoggingMiddleware",
-    "RateLimitMiddleware",
-    "CompressionMiddleware",
-    "get_cors_middleware_config",
-]
+def setup_cors_middleware(app):
+    """Setup CORS middleware on FastAPI app"""
+    config = get_cors_middleware_config()
+    app.add_middleware(
+        CORSMiddleware,
+        **config
+    )
+    logger.info(f"CORS middleware configured for environment: {os.getenv('APP_ENV', 'development')}")
 
+
+def setup_rate_limit_middleware(app):
+    """Setup rate limiting middleware on FastAPI app"""
+    app.add_middleware(RateLimitMiddleware)
+    logger.info("Rate limiting middleware configured")
+
+
+class ErrorHandlerMiddleware(BaseHTTPMiddleware):
+    """Global error handling middleware"""
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Handle errors globally"""
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as e:
+            logger.exception(f"Unhandled error in {request.url.path}: {e}")
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={
+                    "error": "Internal server error",
+                    "detail": str(e) if os.getenv("DEBUG") == "true" else "An unexpected error occurred"
+                }
+            )
+
+
+def setup_error_handler_middleware(app):
+    """Setup error handling middleware on FastAPI app"""
+    app.add_middleware(ErrorHandlerMiddleware)
+    logger.info("Error handling middleware configured")
