@@ -27,6 +27,17 @@ from ..utils.logger import (
 )
 from .state import ResearchState
 
+# Import task manager for status updates (only when needed)
+try:
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+    from src.api.task_manager import get_task_manager
+    from src.api.models import TaskStatus
+    TASK_MANAGER_AVAILABLE = True
+except ImportError:
+    TASK_MANAGER_AVAILABLE = False
+
 
 logger = get_agent_logger("hitl_review")
 
@@ -115,15 +126,16 @@ def _prompt_user_action() -> str:
     """
     Prompt user for review action.
     
-    In non-interactive mode (API), automatically approves the report.
+    In non-interactive mode (API), returns 'pending' to indicate that
+    human review is required via the API endpoint. Never auto-approves.
 
     Returns:
-        User's choice: 'approve', 'edit', or 'reject'.
+        User's choice: 'approve', 'edit', 'reject', or 'pending' (API mode).
     """
     # Check if running in interactive mode
     if not _is_interactive_mode():
-        logger.info("Non-interactive mode detected (API mode). Auto-approving report.")
-        return 'approve'
+        logger.info("Non-interactive mode detected (API mode). Human review required via API endpoint.")
+        return 'pending'
     
     print("\n" + "=" * 70)
     print("HUMAN REVIEW REQUIRED")
@@ -224,8 +236,14 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
 
         # 1) Check if review is needed
         if not needs_hitl:
-            logger.info("HITL review skipped | task_id=%s | needs_hitl=False | confidence=%.2f", 
-                       task_id, confidence_score)
+            logger.warning(
+                "HITL review skipped | task_id=%s | needs_hitl=False | confidence=%.2f | reason=needs_hitl_flag_is_false",
+                task_id, 
+                confidence_score
+            )
+            logger.warning(
+                "This should not happen if confidence < 0.7. Check validation agent logic."
+            )
             # If no review needed, set final_report to report_draft
             report_draft = state.get("report_draft", "")
             if report_draft:
@@ -241,6 +259,20 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
             return new_state
 
         logger.info("HITL review started | task_id=%s | confidence=%.2f", task_id, confidence_score)
+
+        # Update task status to PENDING_REVIEW when human review is needed
+        if TASK_MANAGER_AVAILABLE:
+            try:
+                task_manager = get_task_manager()
+                task_manager.update_task_status(
+                    task_id,
+                    TaskStatus.PENDING_REVIEW,
+                    progress=90.0,
+                    message=f"Report generated (confidence: {confidence_score:.2f}). Human review required."
+                )
+                logger.info("Updated task status to PENDING_REVIEW | task_id=%s", task_id)
+            except Exception as e:
+                logger.warning("Failed to update task status: %s", e)
 
         # 2) Check for errors from previous stages first
         previous_error = state.get("error")
@@ -315,16 +347,26 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
         else:
             logger.info("Skipping display (non-interactive mode)")
 
-        # 4) Prompt user for action (or auto-approve in API mode)
+        # 4) Prompt user for action (or return pending in API mode)
         if _is_interactive_mode():
             logger.info("Waiting for user input...")
         else:
-            logger.info("Non-interactive mode: auto-approving report")
+            logger.info("Non-interactive mode: Human review required via API endpoint")
         action = _prompt_user_action()
         logger.info("User action received: %s", action)
 
         # 5) Handle user action
-        if action == 'approve':
+        if action == 'pending':
+            # In API mode with needs_hitl=True, leave final_report empty
+            # This will cause the workflow executor to set task status to PENDING_REVIEW
+            new_state["final_report"] = ""
+            new_state["error"] = None
+            logger.info(
+                "HITL review: PENDING (awaiting API review) | task_id=%s | confidence=%.2f",
+                task_id,
+                confidence_score,
+            )
+        elif action == 'approve':
             new_state["final_report"] = report_draft
             new_state["error"] = None
             logger.info(
@@ -333,6 +375,19 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
                 confidence_score,
             )
             print("\n[APPROVED] Report approved. Final report set to draft version.")
+            
+            # Update task status to indicate review completed
+            if TASK_MANAGER_AVAILABLE:
+                try:
+                    task_manager = get_task_manager()
+                    task_manager.update_task_status(
+                        task_id,
+                        TaskStatus.PROCESSING,
+                        progress=95.0,
+                        message="Report approved. Finalizing..."
+                    )
+                except Exception as e:
+                    logger.warning("Failed to update task status after approval: %s", e)
 
         elif action == 'edit':
             edited_report = _prompt_edited_report()
@@ -355,6 +410,19 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
                     task_id,
                 )
                 print("\n[EDIT CANCELLED] Using original draft as final report.")
+            
+            # Update task status to indicate review completed
+            if TASK_MANAGER_AVAILABLE:
+                try:
+                    task_manager = get_task_manager()
+                    task_manager.update_task_status(
+                        task_id,
+                        TaskStatus.PROCESSING,
+                        progress=95.0,
+                        message="Report edited. Finalizing..."
+                    )
+                except Exception as e:
+                    logger.warning("Failed to update task status after edit: %s", e)
 
         elif action == 'reject':
             new_state["final_report"] = ""

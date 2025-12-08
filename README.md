@@ -12,6 +12,9 @@ pip install -r requirements.txt
 # Start API Server
 python src/api/main.py
 
+# Start Streamlit Web Interface
+streamlit run streamlit_app.py
+
 # Run Tests
 pytest tests/test_api.py -v
 
@@ -50,7 +53,7 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - Automated report generation with citations
   - Cost tracking and performance metrics
 
-- 🔄 **M4**: API Development & Streamlit Interface (In Progress)
+- ✅ **M4**: API Development & Streamlit Interface (Complete)
   - ✅ FastAPI backend with async request handling
   - ✅ Background task processing
   - ✅ RESTful API endpoints (/api/research, /api/status, /api/report, /api/review)
@@ -58,12 +61,12 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - ✅ CORS and rate limiting middleware
   - ✅ SQLite task management
   - ✅ PDF and Markdown report export formats
-  - 🔄 Streamlit web interface (in progress)
-    - Interactive query input
-    - Real-time workflow visualization
-    - Report preview and editing
-    - HITL review interface
-    - Cost dashboard
+  - ✅ Streamlit web interface
+    - ✅ Interactive query input
+    - ✅ Real-time workflow visualization
+    - ✅ Report preview and editing
+    - ✅ HITL review interface
+    - ✅ Cost dashboard
 
 - 📋 **M5**: Cloud Deployment & Testing (Planned)
   - Deploy FastAPI and Streamlit on AWS EC2
@@ -138,6 +141,16 @@ API available at:
 - **Base URL**: `http://localhost:8000`
 - **Interactive Docs**: `http://localhost:8000/docs`
 - **Health Check**: `http://localhost:8000/health`
+
+### 3a. Start Streamlit Web Interface (Optional)
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Streamlit interface available at:
+- **Web UI**: `http://localhost:8501`
+- Features: Query submission, real-time status tracking, report preview, HITL review, cost dashboard
 
 ### 4. API Usage
 
@@ -247,21 +260,19 @@ See `src/agents/` for detailed agent implementations.
 
 ## Current Status & Next Steps
 
-### M4: API Development & Streamlit Interface (In Progress)
+### M4: API Development & Streamlit Interface (Complete)
 
 **Completed:**
 - ✅ FastAPI backend with full REST API
 - ✅ Background task processing
 - ✅ HITL review via API
 - ✅ Report export (PDF, Markdown)
-
-**In Progress:**
-- 🔄 Streamlit web interface
-  - Interactive query input
-  - Real-time workflow visualization
-  - Report preview and editing
-  - HITL review interface
-  - Cost dashboard
+- ✅ Streamlit web interface
+  - ✅ Interactive query input
+  - ✅ Real-time workflow visualization
+  - ✅ Report preview and editing
+  - ✅ HITL review interface
+  - ✅ Cost dashboard
 
 ### M5: Cloud Deployment & Testing (Planned)
 
@@ -328,6 +339,23 @@ pip install flake8 pylint && flake8 src/ tests/ && pylint src/
 
 ## Production Deployment
 
+### Docker Deployment (Recommended)
+
+```bash
+# Build and start with Docker Compose
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+See [DOCKER.md](DOCKER.md) for detailed deployment instructions including EC2 setup.
+
+### Manual Deployment
+
 ```bash
 # Production environment variables
 export APP_ENV=production DEBUG=false
@@ -337,5 +365,3 @@ export TASK_DB_PATH=/var/lib/ai-research/tasks.db
 pip install gunicorn
 gunicorn src.api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 120
 ```
-
-**Docker Deployment** (Planned for M5): Multi-container setup (FastAPI + Streamlit) for AWS EC2 deployment.

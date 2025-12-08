@@ -82,12 +82,13 @@ class WorkflowExecutor:
                 "regeneration_count": 0,
             }
             
-            # Update progress
+            # Initial progress update (agents will update their own progress)
+            # This is just to show workflow has started
             self.task_manager.update_task_status(
                 task_id,
                 TaskStatus.PROCESSING,
-                progress=30.0,
-                message="Running search agent..."
+                progress=10.0,
+                message="Workflow started. Initializing agents..."
             )
             
             # Run workflow in thread pool to avoid blocking

@@ -49,3 +49,10 @@ python-multipart>=0.0.6
 # PDF Generation
 markdown>=3.5.0
 weasyprint>=60.0
+
+# Streamlit (for M4 web interface)
+streamlit>=1.28.0
+plotly>=5.17.0
+
+# Production server (for Docker deployment)
+gunicorn>=21.2.0
