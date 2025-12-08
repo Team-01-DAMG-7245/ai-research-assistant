@@ -65,7 +65,7 @@ async def get_report(
     
     # Check if report exists
     report = task.get('report')
-    if not report:
+    if not report or (isinstance(report, str) and len(report.strip()) == 0):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Report not found for task {task_id}"

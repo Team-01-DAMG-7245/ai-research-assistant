@@ -110,6 +110,7 @@ class WorkflowExecutor:
             
             # Extract results
             final_report = final_state.get("final_report", "")
+            report_draft = final_state.get("report_draft", "")
             confidence_score = final_state.get("confidence_score", 0.0)
             original_needs_hitl = final_state.get("needs_hitl", False)
             
@@ -117,8 +118,15 @@ class WorkflowExecutor:
             # (either approved, edited, or auto-approved), so needs_hitl should be False
             if final_report and final_report.strip():
                 needs_hitl = False  # HITL review completed successfully
+                report_to_store = final_report
             else:
                 needs_hitl = original_needs_hitl  # Use original value if no final report
+                # If final_report is empty but report_draft exists, use report_draft
+                # This happens when workflow ends with needs_hitl=True (pending review)
+                if report_draft and report_draft.strip():
+                    report_to_store = report_draft
+                else:
+                    report_to_store = final_report  # Fallback to empty string
             
             # Get sources from retrieved chunks
             retrieved_chunks = final_state.get("retrieved_chunks", [])
@@ -159,7 +167,7 @@ class WorkflowExecutor:
             # Store results in database
             self.task_manager.store_task_result(
                 task_id=task_id,
-                report=final_report,
+                report=report_to_store,
                 sources=sources,
                 confidence=confidence_score,
                 needs_hitl=needs_hitl,
@@ -176,7 +184,7 @@ class WorkflowExecutor:
             return {
                 "success": True,
                 "task_id": task_id,
-                "report": final_report,
+                "report": report_to_store,
                 "confidence": confidence_score,
                 "needs_hitl": needs_hitl,
                 "sources": sources
