@@ -122,11 +122,36 @@ class WorkflowExecutor:
             # Get sources from retrieved chunks
             retrieved_chunks = final_state.get("retrieved_chunks", [])
             sources = []
-            for i, chunk in enumerate(retrieved_chunks[:20], 1):  # Limit to top 20
+            
+            # Include up to 20 sources (recommend at least 5 for good citation coverage)
+            min_sources_recommended = 5
+            max_sources = 20
+            num_chunks_to_include = min(len(retrieved_chunks), max_sources)
+            
+            # Warn if we have fewer than recommended minimum
+            if len(retrieved_chunks) < min_sources_recommended:
+                logger.warning(
+                    "Only %d sources available (recommended minimum: %d) | task_id=%s",
+                    len(retrieved_chunks),
+                    min_sources_recommended,
+                    task_id
+                )
+            
+            for i, chunk in enumerate(retrieved_chunks[:num_chunks_to_include], 1):
+                # Extract URL, with fallback to constructing from arxiv_id/doc_id
+                url = chunk.get("url") or chunk.get("pdf_url", "")
+                
+                # If no URL, try to construct from arxiv_id/doc_id
+                if not url:
+                    arxiv_id = chunk.get("doc_id") or chunk.get("arxiv_id", "")
+                    if arxiv_id:
+                        # Construct arXiv PDF URL: https://arxiv.org/pdf/{arxiv_id}.pdf
+                        url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+                
                 sources.append({
                     "source_id": i,
                     "title": chunk.get("title", chunk.get("doc_id", "Unknown")),
-                    "url": chunk.get("url", chunk.get("pdf_url", "")),
+                    "url": url,
                     "relevance_score": 1.0 - (i * 0.02)  # Decreasing relevance
                 })
             

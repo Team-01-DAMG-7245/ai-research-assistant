@@ -154,12 +154,17 @@ def main() -> None:
                     chunk_id = f"{arxiv_id}-{i}"
                     title = arxiv_id
                 
+                # Construct arXiv URL from arxiv_id
+                # Format: https://arxiv.org/pdf/{arxiv_id}.pdf or https://arxiv.org/abs/{arxiv_id}
+                arxiv_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+                
                 # Flat metadata only (AGENTS.md: no nested objects)
                 metadata = {
                     "doc_id": str(arxiv_id),
                     "chunk_id": str(chunk_id),
                     "text": str(text_content)[:40000],  # Respect 40KB metadata limit
                     "title": str(title),
+                    "url": str(arxiv_url),  # Add URL for citations
                 }
                 vectors.append((str(chunk_id), emb, metadata))
 

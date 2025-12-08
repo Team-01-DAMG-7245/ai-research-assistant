@@ -175,21 +175,21 @@ def semantic_search(
 
 def _chunk_s3_key_from_id(chunk_id: str) -> str:
     """
-    Build the S3 key for a chunk stored in the silver layer.
+    Build the S3 key for chunks stored in the processed layer.
 
-    This is a small helper that encapsulates the convention for where
-    processed chunks are stored. Adjust this if your project uses
-    a different layout or naming scheme.
+    Chunks are stored as {arxiv_id}.json files containing arrays of chunks.
+    Extract arxiv_id from chunk_id (format: {arxiv_id}-{chunk_index}).
 
     Args:
-        chunk_id: Unique chunk identifier (e.g., from Pinecone metadata or ID).
+        chunk_id: Unique chunk identifier (e.g., "1706.03762-0").
 
     Returns:
-        S3 key/path to the JSON or text file for this chunk.
+        S3 key/path to the JSON file containing the chunks.
     """
-    # Example convention: silver/chunks/{chunk_id}.json
-    # Modify this to match your actual S3 layout if needed.
-    return f"silver/chunks/{chunk_id}.json"
+    # Extract arxiv_id from chunk_id (format: arxiv_id-chunk_index)
+    arxiv_id = chunk_id.split("-")[0] if "-" in chunk_id else chunk_id
+    # Chunks are stored in processed/text_chunks/{arxiv_id}.json
+    return f"processed/text_chunks/{arxiv_id}.json"
 
 
 def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
@@ -227,31 +227,74 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
     # We will stream objects directly from S3 without persisting to disk
     s3 = s3_client.s3  # reuse underlying boto3 client
     results: List[Dict[str, Any]] = []
-
+    
+    # Group chunk_ids by arxiv_id to minimize S3 requests
+    chunks_by_arxiv: Dict[str, List[str]] = {}
     for chunk_id in chunk_ids:
-        s3_key = _chunk_s3_key_from_id(chunk_id)
+        arxiv_id = chunk_id.split("-")[0] if "-" in chunk_id else chunk_id
+        if arxiv_id not in chunks_by_arxiv:
+            chunks_by_arxiv[arxiv_id] = []
+        chunks_by_arxiv[arxiv_id].append(chunk_id)
+
+    for arxiv_id, chunk_id_list in chunks_by_arxiv.items():
+        s3_key = _chunk_s3_key_from_id(chunk_id_list[0])  # All chunks from same arxiv_id use same file
         try:
             obj = s3.get_object(Bucket=bucket, Key=s3_key)
             body = obj["Body"].read()
 
-            # Try JSON first
+            # Parse JSON file containing array of chunks
             try:
-                data = json.loads(body)
+                file_data = json.loads(body)
+                # File structure: {"arxiv_id": "...", "chunks": [...]}
+                chunks_array = file_data.get("chunks", [])
+                file_arxiv_id = file_data.get("arxiv_id", arxiv_id)
             except Exception:
-                # Fallback: treat as plain text
-                text = body.decode("utf-8", errors="ignore")
-                data = {"chunk_id": chunk_id, "text": text}
+                logger.error("Failed to parse JSON from s3://%s/%s", bucket, s3_key)
+                continue
 
-            # Ensure minimal fields are present
-            data.setdefault("chunk_id", chunk_id)
-            if "text" not in data and "content" in data:
-                data["text"] = data["content"]
+            # Find matching chunks by index (chunk_id format: arxiv_id-{index})
+            for chunk_id in chunk_id_list:
+                try:
+                    # Extract chunk index from chunk_id (format: arxiv_id-{index})
+                    chunk_index_str = chunk_id.split("-", 1)[1] if "-" in chunk_id else "0"
+                    chunk_index = int(chunk_index_str)
+                    
+                    if 0 <= chunk_index < len(chunks_array):
+                        chunk_data = chunks_array[chunk_index]
+                        # Handle both string and dict chunks
+                        if isinstance(chunk_data, str):
+                            data = {"chunk_id": chunk_id, "text": chunk_data}
+                        elif isinstance(chunk_data, dict):
+                            data = dict(chunk_data)  # Copy the dict
+                            data["chunk_id"] = chunk_id
+                        else:
+                            data = {"chunk_id": chunk_id, "text": str(chunk_data)}
+                    else:
+                        logger.warning("Chunk index %d out of range for %s (has %d chunks)", 
+                                     chunk_index, s3_key, len(chunks_array))
+                        continue
+                except (ValueError, IndexError) as e:
+                    logger.warning("Failed to parse chunk index from chunk_id '%s': %s", chunk_id, e)
+                    continue
 
-            results.append(data)
+                # Ensure minimal fields are present
+                data.setdefault("chunk_id", chunk_id)
+                if "doc_id" not in data:
+                    data["doc_id"] = file_arxiv_id
+                if "text" not in data and "content" in data:
+                    data["text"] = data["content"]
+                
+                # Construct URL from arxiv_id if not present
+                if "url" not in data or not data.get("url"):
+                    doc_id = data.get("doc_id") or file_arxiv_id or chunk_id.split("-")[0]
+                    if doc_id:
+                        # Construct arXiv PDF URL: https://arxiv.org/pdf/{arxiv_id}.pdf
+                        data["url"] = f"https://arxiv.org/pdf/{doc_id}.pdf"
+
+                results.append(data)
         except Exception as exc:
             logger.error(
-                "Failed to retrieve or parse chunk '%s' from s3://%s/%s: %s",
-                chunk_id,
+                "Failed to retrieve chunks from s3://%s/%s: %s",
                 bucket,
                 s3_key,
                 exc,
