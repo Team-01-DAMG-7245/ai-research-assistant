@@ -680,9 +680,15 @@ async def get_research_report(
                 }
             )
         
-        # Allow pending_review tasks to view reports (needed for HITL review)
-        # if task_status_lower == "pending_review":
-        #     raise HTTPException(...)
+        if task_status_lower == "pending_review":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "Task pending review",
+                    "message": "Task is pending human review. Report will be available after approval.",
+                    "status": task_status_str
+                }
+            )
         
         if task_status_lower == "failed":
             raise HTTPException(
@@ -694,8 +700,7 @@ async def get_research_report(
                 }
             )
         
-        # Allow completed, approved, and pending_review tasks to view reports
-        if task_status_lower not in ["completed", "approved", "pending_review"]:
+        if task_status_lower not in ["completed", "approved"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
@@ -838,45 +843,6 @@ async def get_research_report(
         )
 
 
-@router.get("/tasks")
-async def get_all_tasks(
-    status: Optional[str] = Query(default=None, description="Filter by status"),
-    limit: Optional[int] = Query(default=100, description="Maximum number of tasks to return"),
-    offset: int = Query(default=0, description="Number of tasks to skip")
-) -> Dict[str, Any]:
-    """
-    Get all tasks with optional filtering.
-    
-    Args:
-        status: Optional status filter
-        limit: Maximum number of tasks to return
-        offset: Number of tasks to skip (for pagination)
-    
-    Returns:
-        Dictionary with tasks list and metadata
-    """
-    try:
-        task_manager = get_task_manager()
-        tasks = task_manager.get_all_tasks(status=status, limit=limit, offset=offset)
-        
-        return {
-            "tasks": tasks,
-            "count": len(tasks),
-            "limit": limit,
-            "offset": offset,
-            "has_more": len(tasks) == limit if limit else False
-        }
-    except Exception as e:
-        logger.error(f"Error retrieving tasks: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal server error",
-                "message": "An error occurred while retrieving tasks."
-            }
-        )
-
-
 @router.get("/debug/{task_id}")
 async def debug_task(task_id: str) -> Dict[str, Any]:
     """
@@ -908,4 +874,3 @@ async def debug_task(task_id: str) -> Dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"error": str(e)}
         )
-

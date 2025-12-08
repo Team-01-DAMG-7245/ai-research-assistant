@@ -3,7 +3,7 @@
 AI Research Assistant - Advanced Frontend
 Author: Kundana Pooskur
 M4: API & Frontend Development
-Features: Beautiful minimalist UI with complete functionality
+Features: Beautiful dark theme UI with complete functionality
 """
 
 import streamlit as st
@@ -31,15 +31,21 @@ st.set_page_config(
     }
 )
 
-# ============ CUSTOM CSS FOR BEAUTIFUL UI ============
+# ============ CUSTOM CSS FOR DARK THEME UI ============
 st.markdown("""
 <style>
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     
-    /* Global Styles */
+    /* Global Dark Theme */
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
+    }
+    
+    /* Dark background for main app */
+    .stApp {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #e0e0e0;
     }
     
     /* Hide Streamlit Branding */
@@ -51,15 +57,17 @@ st.markdown("""
     .main {
         padding-top: 0rem;
         max-width: 100%;
+        background: transparent;
     }
     
-    /* Hero Section */
+    /* Hero Section - Pure Purple Theme */
     .hero-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
         padding: 3rem 2rem;
         border-radius: 20px;
         margin-bottom: 2rem;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        box-shadow: 0 20px 40px rgba(124, 58, 237, 0.3);
+        border: 1px solid rgba(124, 58, 237, 0.2);
     }
     
     .hero-title {
@@ -68,28 +76,30 @@ st.markdown("""
         font-weight: 700;
         margin-bottom: 0.5rem;
         text-align: center;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
     .hero-subtitle {
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.95);
         font-size: 1.1rem;
         text-align: center;
         font-weight: 300;
     }
     
-    /* Cards */
+    /* Dark Cards */
     .metric-card {
-        background: white;
+        background: linear-gradient(135deg, #2a2d3a 0%, #212534 100%);
         padding: 1.5rem;
         border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        border: 1px solid rgba(139, 92, 246, 0.2);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     
     .metric-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 12px 24px rgba(139, 92, 246, 0.3);
+        border: 1px solid rgba(139, 92, 246, 0.4);
     }
     
     /* Status Badge */
@@ -104,66 +114,74 @@ st.markdown("""
     }
     
     .status-pending { 
-        background: linear-gradient(135deg, #ffd93d, #ffb73d);
+        background: linear-gradient(135deg, #f59e0b, #f97316);
         color: white;
+        box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
     }
     
     .status-processing { 
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
         color: white;
+        box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
     }
     
     .status-completed { 
-        background: linear-gradient(135deg, #56ab2f, #a8e063);
+        background: linear-gradient(135deg, #10b981, #059669);
         color: white;
+        box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
     }
     
     .status-failed { 
-        background: linear-gradient(135deg, #ff5858, #f09819);
+        background: linear-gradient(135deg, #ef4444, #dc2626);
         color: white;
+        box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
     }
     
-    /* Buttons */
+    /* Pure Purple Theme Buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
         color: white;
         border: none;
         padding: 0.75rem 2rem;
         font-weight: 600;
         border-radius: 10px;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
     }
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        box-shadow: 0 6px 20px rgba(147, 51, 234, 0.5);
+        background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
     }
     
-    /* Text Input */
+    /* Dark Text Input */
     .stTextArea > div > div > textarea {
+        background: #2a2d3a;
+        color: #e0e0e0;
         border-radius: 10px;
-        border: 2px solid #e0e0e0;
+        border: 2px solid #3f4354;
         padding: 1rem;
         font-size: 1rem;
         transition: border-color 0.3s ease;
     }
     
     .stTextArea > div > div > textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
     }
     
-    /* Progress Bar */
+    /* Pure Purple Progress Bar */
     .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #667eea, #764ba2);
+        background: linear-gradient(90deg, #7c3aed, #a855f7);
         border-radius: 10px;
     }
     
-    /* Tabs */
+    /* Dark Tabs - Pure Purple Selected */
     .stTabs [data-baseweb="tab-list"] {
         gap: 2rem;
-        border-bottom: 2px solid #e0e0e0;
+        border-bottom: 2px solid #3f4354;
+        background: transparent;
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -173,11 +191,11 @@ st.markdown("""
         border-radius: 10px 10px 0 0;
         padding: 1rem 1.5rem;
         font-weight: 600;
-        color: #666;
+        color: #9ca3af;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
         color: white;
     }
     
@@ -192,53 +210,61 @@ st.markdown("""
         animation: pulse 2s infinite;
     }
     
-    /* Report Display - Updated Styles */
+    /* Dark Theme Report Display - Pure Purple */
     .report-wrapper {
-        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
         border-radius: 20px;
         padding: 2rem;
         margin: 1rem 0;
+        border: 1px solid rgba(124, 58, 237, 0.2);
     }
+    
     .report-container-styled {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        background: linear-gradient(135deg, #2a2d3a 0%, #212534 100%);
         padding: 2.5rem;
         border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.1);
-        border: 1px solid rgba(102, 126, 234, 0.1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(124, 58, 237, 0.3);
         margin: 0;
     }
+    
     .report-title-styled {
         font-size: 2rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 1.5rem;
         text-align: center;
     }
+    
     .report-content-styled {
         line-height: 1.8;
-        color: #2c3e50;
+        color: #e0e0e0;
         font-size: 1.05rem;
         white-space: pre-wrap;
         font-family: 'Inter', sans-serif;
     }
+    
     .report-content-styled h1, .report-content-styled h2, .report-content-styled h3 {
-        color: #667eea;
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         margin-top: 1.5rem;
         margin-bottom: 1rem;
     }
+    
     .report-divider {
         height: 3px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
+        background: linear-gradient(90deg, #7c3aed, #a855f7);
         border: none;
         border-radius: 3px;
         margin: 1.5rem 0;
     }
     
-    /* Download Buttons */
+    /* Purple Download Buttons */
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
         color: white;
         border: none;
         padding: 0.75rem 2rem;
@@ -246,11 +272,51 @@ st.markdown("""
         border-radius: 10px;
         width: 100%;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
     }
+    
     .stDownloadButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 20px rgba(147, 51, 234, 0.4);
+    }
+    
+    /* Dark Theme for all Streamlit elements */
+    .stSelectbox > div > div {
+        background: #2a2d3a;
+        color: #e0e0e0;
+        border: 1px solid #3f4354;
+    }
+    
+    .stExpander {
+        background: #2a2d3a;
+        border: 1px solid #3f4354;
+        border-radius: 10px;
+    }
+    
+    .stMetric {
+        background: linear-gradient(135deg, #2a2d3a 0%, #212534 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Custom scrollbar - Pure Purple */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #1a1a2e;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #7c3aed, #a855f7);
+        border-radius: 5px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #8b5cf6, #a855f7);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -323,8 +389,6 @@ class APIClient:
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 409:
-                # Task might be pending review - the endpoint should allow this now
-                # But if it still returns 409, there might be an issue
                 error_detail = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 return {
                     "error": True,
@@ -380,15 +444,13 @@ class APIClient:
             if response.status_code == 200:
                 data = response.json()
                 tasks = data.get("tasks", [])
-                # Log for debugging (only in Streamlit context)
                 if len(tasks) == 0:
                     print(f"[API Client] Warning: API returned 200 but empty tasks list. Response: {data}")
                 return tasks
             else:
                 error_msg = f"Error getting tasks: {response.status_code} - {response.text[:200]}"
                 print(f"[API Client] {error_msg}")
-                # Return error info in a way Streamlit can detect
-                return []  # Return empty list, but we'll handle this in UI
+                return []
         except requests.exceptions.ConnectionError as e:
             error_msg = f"Connection error: Cannot connect to {self.base_url}"
             print(f"[API Client] {error_msg}: {e}")
@@ -428,11 +490,9 @@ api_client = APIClient()
 def test_api_connection():
     """Test if API is accessible"""
     try:
-        # Try health endpoint first
         response = requests.get(f"{api_client.base_url}/health", timeout=5)
         if response.status_code == 200:
             return True, response.json()
-        # If health doesn't work, try the tasks endpoint as fallback
         response = requests.get(f"{api_client.base_url}/api/v1/tasks?limit=1", timeout=5)
         if response.status_code == 200:
             return True, {"status": "healthy", "fallback": "tasks_endpoint"}
@@ -471,13 +531,12 @@ with tab1:
             key="research_query"
         )
         
-        # Show suggestions if query is typed (FIXED - no button conflicts)
+        # Show suggestions if query is typed
         if query and len(query) > 3:
             suggestions = api_client.get_suggestions(query)
             if suggestions:
                 st.markdown("**💡 Suggestions:**")
                 for suggestion in suggestions[:3]:
-                    # Just display suggestions as text, not buttons
                     st.text(f"→ {suggestion}")
         
         # Research Options
@@ -511,7 +570,6 @@ with tab1:
                 with st.spinner("Submitting your research query..."):
                     result = api_client.submit_research(query, depth)
                     
-                    # Check if result has error
                     if result and result.get("error"):
                         error_msg = result.get("message", "Unknown error")
                         if result.get("connection_error"):
@@ -531,7 +589,6 @@ with tab1:
                         st.session_state.current_task = task_id
                         st.success(f"✅ Research task submitted! Task ID: `{task_id}`")
                         st.info("💡 Your task is now being processed. Check the 'Active Tasks' tab to see progress.")
-                        # Force a rerun to show the new task immediately
                         st.balloons()
                         st.rerun()
                     else:
@@ -568,7 +625,7 @@ with tab2:
                 st.json({
                     "total_tasks": len(all_tasks),
                     "api_url": f"{api_client.base_url}/api/v1/tasks",
-                    "tasks": all_tasks[:5] if all_tasks else [],  # Show first 5 for debugging
+                    "tasks": all_tasks[:5] if all_tasks else [],
                     "status_breakdown": {
                         status: len([t for t in all_tasks if t.get("status") == status])
                         for status in set([t.get("status", "unknown") for t in all_tasks])
@@ -580,18 +637,14 @@ with tab2:
             if st.button("🔄 Refresh"):
                 st.rerun()
         else:
-            # Sort tasks by creation date (newest first) so latest tasks appear at top
             all_tasks = sorted(all_tasks, key=lambda x: x.get("created_at", ""), reverse=True)
             
-            # Show task count
             st.caption(f"Total tasks in database: {len(all_tasks)}")
             
-            # Filter tasks based on show_all toggle
             if show_all:
                 display_tasks = all_tasks
                 st.info(f"Showing all {len(display_tasks)} tasks")
             else:
-                # Show active tasks AND failed tasks (so user can see what went wrong)
                 display_tasks = [t for t in all_tasks if t.get("status", "").lower() not in ["completed", "approved"]]
                 if len(display_tasks) < len(all_tasks):
                     completed_count = len([t for t in all_tasks if t.get("status", "").lower() in ["completed", "approved"]])
@@ -607,10 +660,8 @@ with tab2:
                     created_at = task.get("created_at", "Unknown")
                     error_message = task.get("error_message")
                     
-                    # Get latest status from API for real-time updates
                     status_data = api_client.get_status(task_id)
                     if status_data:
-                        # Handle both string and enum status values
                         status_value = status_data.get("status")
                         if hasattr(status_value, 'value'):
                             status = status_value.value
@@ -622,10 +673,8 @@ with tab2:
                         progress = status_data.get("progress", progress) or 0
                         current_agent = status_data.get("current_agent", current_agent)
                         
-                        # Extract error message from status response
                         status_msg = status_data.get("message", "")
                         if status.lower() == "failed":
-                            # The message field contains "Task failed: {error_message}"
                             if status_msg and "Task failed:" in status_msg:
                                 error_message = status_msg.replace("Task failed: ", "")
                             elif status_msg:
@@ -633,9 +682,7 @@ with tab2:
                         elif status_msg and "error" in status_msg.lower():
                             error_message = status_msg
                     
-                    # Status card
                     with st.container():
-                        # Show error message prominently if task failed
                         if status.lower() == "failed":
                             st.error(f"❌ **Task Failed** - {error_message or 'Unknown error'}")
                         
@@ -651,7 +698,6 @@ with tab2:
                                 st.caption(f"⚠️ Error: {error_message[:100]}")
                         
                         with col2:
-                            # Progress visualization
                             if status.lower() != "failed":
                                 st.progress(progress / 100)
                                 st.markdown(f"Progress: {progress}%")
@@ -664,7 +710,6 @@ with tab2:
                             st.markdown(f"<span class='status-badge status-{status_class}'>{status}</span>", 
                                       unsafe_allow_html=True)
                         
-                        # Show full error details in expander for failed tasks
                         if status.lower() == "failed":
                             with st.expander("🔍 View Error Details & Troubleshooting", expanded=False):
                                 if error_message:
@@ -687,7 +732,6 @@ with tab2:
                         
                         st.markdown("---")
             
-                # Auto-refresh
                 if auto_refresh:
                     time.sleep(3)
                     st.rerun()
@@ -701,306 +745,102 @@ with tab2:
         if st.button("🔄 Retry"):
             st.rerun()
 
-# ============ TAB 3: REPORTS ============
+# ============ TAB 3: REPORTS (FIXED) ============
 with tab3:
-    col_header, col_refresh, col_test = st.columns([2, 1, 1])
-    with col_header:
-        st.markdown("### 📚 Research Reports")
-    with col_refresh:
-        if st.button("🔄 Refresh", key="refresh_reports"):
-            st.rerun()
-    with col_test:
-        test_api = st.button("🧪 Test API", key="test_api_reports")
+    st.markdown("### 📚 Research Reports")
     st.markdown("---")
     
-    # Direct API test
-    if test_api:
-        with st.expander("🧪 API Test Results", expanded=True):
-            try:
-                import requests
-                response = requests.get(f"{api_client.base_url}/api/v1/tasks", timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    tasks = data.get("tasks", [])
-                    st.success(f"✅ API Test: Got {len(tasks)} tasks")
-                    
-                    tasks_with_reports = [
-                        t for t in tasks 
-                        if t.get("status", "").lower() in ["completed", "approved", "pending_review"]
-                    ]
-                    st.info(f"📋 Tasks with reports: {len(tasks_with_reports)}")
-                    
-                    if tasks_with_reports:
-                        st.json({
-                            "sample_tasks": [
-                                {
-                                    "task_id": t.get("task_id"),
-                                    "status": t.get("status"),
-                                    "query": t.get("query", "")[:50]
-                                }
-                                for t in tasks_with_reports[:3]
-                            ]
-                        })
-                else:
-                    st.error(f"❌ API Test Failed: {response.status_code}")
-            except Exception as e:
-                st.error(f"❌ API Test Exception: {e}")
-                import traceback
-                st.code(traceback.format_exc())
-    
-    # Get all tasks with results (completed, approved, or pending_review)
     try:
-        # Show loading state
         with st.spinner("Loading reports from database..."):
             all_tasks = api_client.get_all_tasks()
         
-        # CRITICAL DEBUG: Show exactly what we got from API
-        st.markdown("### 🔍 API Response Debug")
-        st.write(f"**Tasks returned from API:** {len(all_tasks) if all_tasks else 0}")
-        
-        if all_tasks and len(all_tasks) > 0:
-            status_breakdown = {}
-            for t in all_tasks:
-                status = t.get("status", "unknown")
-                status_breakdown[status] = status_breakdown.get(status, 0) + 1
-            st.success(f"✅ **Loaded {len(all_tasks)} tasks from API.**")
-            st.json(status_breakdown)
-            
-            # Show first few tasks as proof
-            st.write("**Sample tasks (first 3):**")
-            for i, t in enumerate(all_tasks[:3], 1):
-                st.write(f"{i}. Task ID: `{t.get('task_id', 'N/A')[:8]}...` | Status: `{t.get('status', 'N/A')}` | Query: {t.get('query', 'N/A')[:40]}")
-        else:
-            st.error("❌ **API returned 0 tasks or None!**")
-            st.write(f"Type: {type(all_tasks)}, Value: {all_tasks}")
-        
-        # Show immediate feedback
         if not all_tasks:
             st.warning("⚠️ No tasks found. The API returned an empty list.")
             st.caption("Try submitting a new query or check if the API is running.")
-            
-            if st.button("🔄 Retry Loading Tasks", key="retry_tasks"):
-                st.rerun()
             st.stop()
         
-        # SIMPLIFIED FILTER: Just get reports directly - no complex logic
+        # Filter for tasks with reports
         tasks_with_reports = []
-        status_counts = {}
-        
-        # Count statuses and filter in one pass
         for t in all_tasks:
-            status = t.get("status", "")
-            status_counts[status] = status_counts.get(status, 0) + 1
-            
-            # Simple, direct check
-            status_lower = str(status).lower().strip()
-            if status_lower in ["pending_review", "completed", "approved"]:
+            status = str(t.get("status", "")).lower().strip()
+            if status in ["pending_review", "completed", "approved"]:
                 tasks_with_reports.append(t)
         
-        # Show summary
-        st.markdown("---")
-        st.markdown("### 📊 Summary")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Tasks", len(all_tasks))
-        with col2:
-            st.metric("Reports Found", len(tasks_with_reports))
-        with col3:
-            pending_count = len([t for t in tasks_with_reports if "pending" in str(t.get("status", "")).lower()])
-            st.metric("Pending Review", pending_count)
-        
-        # Show status breakdown
-        st.json(status_counts)
-        
-        # If no reports found, try direct approach
-        if len(tasks_with_reports) == 0:
-            st.warning("⚠️ Initial filter found 0 reports. Trying direct search...")
-            for t in all_tasks:
-                status = str(t.get("status", "")).lower()
-                if "pending_review" in status or "completed" in status or "approved" in status:
-                    tasks_with_reports.append(t)
-        
-        # Show what we found
         if len(tasks_with_reports) > 0:
-            st.success(f"✅ **{len(tasks_with_reports)} REPORT(S) FOUND!**")
-            st.balloons()
-        else:
-            st.error(f"❌ No reports found. Status breakdown: {status_counts}")
-        
-        debug_reports = st.checkbox("🔧 Show Debug Info", value=False)
-        
-        # ALWAYS try to display reports - even if tasks_with_reports is empty, show what we have
-        st.markdown("---")
-        st.markdown("### 📚 Available Reports")
-        
-        if len(tasks_with_reports) > 0:
-            # Show count - make it VERY prominent
-            pending_count = len([t for t in tasks_with_reports if "pending" in str(t.get("status", "")).lower()])
-            completed_count = len([t for t in tasks_with_reports if "completed" in str(t.get("status", "")).lower() or "approved" in str(t.get("status", "")).lower()])
-            
-            # Always show the count prominently
-            st.success(f"📋 **{len(tasks_with_reports)} report(s) available:** {pending_count} pending review ⏳, {completed_count} completed/approved ✅")
-            
             # Show metrics
-            col_metric1, col_metric2, col_metric3 = st.columns(3)
-            with col_metric1:
+            col1, col2, col3 = st.columns(3)
+            with col1:
                 st.metric("Total Reports", len(tasks_with_reports))
-            with col_metric2:
+            with col2:
+                pending_count = len([t for t in tasks_with_reports if "pending" in str(t.get("status", "")).lower()])
                 st.metric("Pending Review", pending_count)
-            with col_metric3:
+            with col3:
+                completed_count = len([t for t in tasks_with_reports if "completed" in str(t.get("status", "")).lower() or "approved" in str(t.get("status", "")).lower()])
                 st.metric("Completed", completed_count)
             
-            # Create selector with task info
+            # Create selector
             task_options = {}
             for task in tasks_with_reports:
                 task_id = task.get("task_id")
                 query = task.get("query", "Unknown")[:50]
                 status = task.get("status", "unknown")
                 status_emoji = "⏳" if "pending" in str(status).lower() else "✅"
-                display_text = f"{status_emoji} {task_id[:8]}... - {query} ({status})"
-                task_options[task_id] = display_text
+                display_text = f"{status_emoji} {query} - {task_id[:8]}..."
+                task_options[display_text] = task_id
             
-            # Show list of all reports
-            st.markdown("#### Available Reports:")
-            for i, task in enumerate(tasks_with_reports[:15], 1):
-                task_id = task.get("task_id")
-                query = task.get("query", "Unknown")
-                status = task.get("status", "unknown")
-                status_emoji = "⏳" if "pending" in str(status).lower() else "✅"
-                st.write(f"{i}. {status_emoji} **{query[:60]}** - `{task_id[:8]}...` ({status})")
+            selected_display = st.selectbox(
+                "Select a Report to View",
+                options=list(task_options.keys()),
+                help="Select a report to view. Reports with ⏳ are pending review, ✅ are completed."
+            )
             
-            # Initialize selected_id
-            selected_id = None
+            selected_id = task_options[selected_display]
             
-            if len(task_options) > 0:
-                # Show a clear label
-                st.markdown("#### Select a Report to View:")
-                
-                # Debug: Show what we're about to display
-                if debug_reports:
-                    with st.expander("Debug: Task Options"):
-                        st.json({
-                            "task_options_count": len(task_options),
-                            "all_task_ids": [t.get("task_id") for t in tasks_with_reports],
-                            "sample_tasks": [{"task_id": t.get("task_id")[:8], "status": t.get("status"), "query": t.get("query", "")[:30]} for t in tasks_with_reports[:5]]
-                        })
-                
-                # Show list of available reports
-                st.markdown("**Available Reports:**")
-                for i, task in enumerate(tasks_with_reports[:10], 1):  # Show first 10
-                    task_id = task.get("task_id")
-                    query = task.get("query", "Unknown")[:60]
-                    status = task.get("status", "unknown")
-                    status_emoji = "⏳" if status.lower() == "pending_review" else "✅"
-                    st.caption(f"{i}. {status_emoji} `{task_id[:8]}...` - {query} ({status})")
-                
-                # Use index for selectbox to ensure it works
-                task_ids = list(task_options.keys())
-                task_display_texts = [task_options[tid] for tid in task_ids]
-                
-                # Create selectbox with index
-                selected_index = st.selectbox(
-                    "Choose Report",
-                    options=range(len(task_display_texts)),
-                    format_func=lambda i: task_display_texts[i],
-                    help="Select a report to view. Reports with ⏳ are pending review, ✅ are completed.",
-                    label_visibility="visible",
-                    key="report_selector"
-                )
-                
-                # Get the actual task_id from the index
-                selected_id = task_ids[selected_index] if selected_index < len(task_ids) else task_ids[0]
-                
-                # Show which one is selected
-                st.caption(f"📄 Selected: {task_options[selected_id]}")
-            else:
-                # Fallback: if task_options is empty but tasks_with_reports exists, show them directly
-                st.warning("⚠️ Task options dictionary is empty, but tasks exist. Showing first task.")
-                if tasks_with_reports:
-                    selected_id = tasks_with_reports[0].get("task_id")
-                    st.info(f"Displaying: {tasks_with_reports[0].get('query', 'Unknown')[:50]}")
-            
-            # Load and display report if we have a selected_id
+            # Load and display report
             if selected_id:
-                # Get report from API
                 with st.spinner("Loading report..."):
                     report_data = api_client.get_report(selected_id)
                 
-                # Check if there's an error
                 if report_data and report_data.get("error"):
                     error_msg = report_data.get("message", "Unknown error")
                     st.error(f"❌ **Error loading report:** {error_msg}")
-                    if report_data.get("status_code") == 409:
-                        st.info("💡 The report endpoint returned 409 (Conflict). This might mean the task status doesn't allow report viewing yet.")
-                    if debug_reports:
-                        with st.expander("Error Details"):
-                            st.json(report_data)
                 elif report_data and report_data.get("report"):
-                    # Display report with beautiful styling
+                    # Get the report text
                     report_text = report_data.get('report', 'No report content available')
                     
-                    # Display the report in a beautiful container
-                    st.markdown('<div class="report-wrapper">', unsafe_allow_html=True)
-                    st.markdown(f"""
-                    <div class="report-container-styled">
-                        <h2 class="report-title-styled">🧬 Research Report</h2>
-                        <div class="report-divider"></div>
-                        <div class="report-content-styled">
-{html.escape(report_text)}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    # Display the report WITHOUT HTML wrapper - just use markdown
+                    st.markdown("### 🧬 Research Report")
                     
-                    # Metadata section with gradient cards
+                    # Display report in a nice container with dark theme
+                    with st.container():
+                        # Use markdown to display the report content
+                        st.markdown(report_text)
+                    
+                    # Metadata section
                     st.markdown("---")
                     st.markdown("### 📊 Report Metrics")
                     
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
-                        # Confidence score with color coding
                         confidence = report_data.get('confidence_score', 0.0)
-                        conf_color = "#56ab2f" if confidence > 0.8 else "#f39c12" if confidence > 0.6 else "#e74c3c"
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, {conf_color}15 0%, {conf_color}25 100%); 
-                                    padding: 1.5rem; border-radius: 15px; text-align: center;">
-                            <h4 style="color: {conf_color}; margin: 0;">Confidence Score</h4>
-                            <h2 style="color: {conf_color}; margin: 0.5rem 0;">{confidence:.2%}</h2>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.metric("Confidence Score", f"{confidence:.2%}")
                     
                     with col2:
-                        # Sources with icon
                         sources_count = len(report_data.get('sources', []))
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #3498db15 0%, #3498db25 100%); 
-                                    padding: 1.5rem; border-radius: 15px; text-align: center;">
-                            <h4 style="color: #3498db; margin: 0;">📚 Sources</h4>
-                            <h2 style="color: #3498db; margin: 0.5rem 0;">{sources_count}</h2>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.metric("Sources", sources_count)
                     
                     with col3:
-                        # Status with gradient
                         status = report_data.get('status', 'unknown')
-                        status_color = "#56ab2f" if status == "completed" else "#764ba2"
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, {status_color}15 0%, {status_color}25 100%); 
-                                    padding: 1.5rem; border-radius: 15px; text-align: center;">
-                            <h4 style="color: {status_color}; margin: 0;">✅ Status</h4>
-                            <h2 style="color: {status_color}; margin: 0.5rem 0; font-size: 1.5rem;">{status}</h2>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.metric("Status", status)
                     
                     # Export options
                     st.markdown("---")
                     st.markdown("### 📥 Export Options")
                     
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2 = st.columns(2)
                     
                     with col1:
-                        # Download as Markdown
                         st.download_button(
                             "📝 Download Markdown",
                             data=report_text,
@@ -1010,7 +850,6 @@ with tab3:
                         )
                     
                     with col2:
-                        # Export as JSON
                         st.download_button(
                             "📊 Download JSON",
                             data=json.dumps(report_data, indent=2),
@@ -1018,158 +857,107 @@ with tab3:
                             mime="application/json",
                             use_container_width=True
                         )
-                    
-                    with col3:
-                        # Copy to clipboard button
-                        if st.button("📋 Copy to Clipboard", use_container_width=True):
-                            st.write("Report copied! (Feature requires JavaScript)")
                 else:
                     st.warning(f"⚠️ Report not yet available for task {selected_id[:8]}. It may still be processing.")
-                    st.caption("💡 If the task shows 'pending_review' status, the report should be available. Try refreshing or check the HITL Review tab.")
-                    if debug_reports:
-                        with st.expander("Debug: Why report not available"):
-                            # Try to get status
-                            status_data = api_client.get_status(selected_id)
-                            st.json({
-                                "task_id": selected_id,
-                                "status_from_api": status_data,
-                                "report_api_response": report_data if report_data else "None"
-                            })
         else:
             st.info("No reports available yet. Reports will appear here once your research tasks are complete or pending review.")
-            st.caption("💡 Tasks with status 'pending_review', 'completed', or 'approved' should appear here.")
-            
-            # Always show debug info if no reports
-            with st.expander("🔍 Diagnostic Information", expanded=True):
-                st.json({
-                    "all_tasks_count": len(all_tasks),
-                    "all_task_statuses": [t.get("status") for t in all_tasks],
-                    "filtered_count": len(tasks_with_reports),
-                    "api_url": f"{api_client.base_url}/api/v1/tasks",
-                    "sample_tasks": [
-                        {
-                            "task_id": t.get("task_id")[:8] + "...",
-                            "status": t.get("status"),
-                            "query": t.get("query", "")[:40]
-                        }
-                        for t in all_tasks[:5]
-                    ] if all_tasks else []
-                })
-                st.caption("💡 If you see tasks above but 'filtered_count' is 0, check that status values match exactly.")
     except Exception as e:
         st.error(f"❌ Error loading reports: {str(e)}")
-        st.caption("This might indicate the API is not accessible or there's a connection issue.")
         with st.expander("🔍 Full Error Details", expanded=True):
             st.exception(e)
-            st.json({
-                "api_url": f"{api_client.base_url}/api/v1/tasks",
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-        if st.button("🔄 Retry Loading Reports", key="retry_reports"):
-            st.rerun()
 
 # ============ TAB 4: HITL REVIEW ============
 with tab4:
     st.markdown("### ✅ Human-in-the-Loop Review")
     st.markdown("---")
     
-    # Get tasks with pending_review status from database
     pending_review_tasks = api_client.get_all_tasks(status="pending_review")
     
     if pending_review_tasks:
-        # Create selector
         task_options = {}
         for task in pending_review_tasks:
             task_id = task.get("task_id")
             query = task.get("query", "Unknown")[:50]
-            task_options[task_id] = f"{task_id[:8]}... - {query}"
+            task_options[f"{query} - {task_id[:8]}..."] = task_id
         
-        selected_review_id = st.selectbox(
+        selected_display = st.selectbox(
             "Select Report for Review",
-            options=list(task_options.keys()),
-            format_func=lambda x: task_options[x]
+            options=list(task_options.keys())
         )
         
+        selected_review_id = task_options[selected_display]
+        
         if selected_review_id:
-            # Get report from API
             report_data = api_client.get_report(selected_review_id)
             
-            if report_data:
+            if report_data and not report_data.get("error"):
                 report_text = report_data.get('report', 'No content available')
                 confidence = report_data.get('confidence_score', 0.0)
                 
-                # Show report info
                 col1, col2 = st.columns(2)
                 with col1:
                     st.metric("Confidence Score", f"{confidence:.2%}")
                 with col2:
                     st.metric("Sources", len(report_data.get('sources', [])))
-            
-            # Display report for review
+                
                 with st.expander("📄 View Full Report", expanded=True):
                     st.markdown(report_text)
-            
-            # Review actions
-            st.markdown("### Review Decision")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if st.button("✅ Approve", type="primary", use_container_width=True, key="approve_btn"):
-                    with st.spinner("Approving report..."):
-                        result = api_client.submit_review(selected_review_id, "approve")
-                    if result:
-                        st.success("✅ Report approved! Status updated to completed.")
-                        st.balloons()
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.error("❌ Failed to submit review. Please try again.")
-            
-            with col2:
-                st.info("💡 Edit functionality coming soon. For now, you can reject and resubmit.")
-            
-            with col3:
-                feedback = st.text_area(
-                    "Rejection Reason (Required for Reject)",
-                    placeholder="Enter reason for rejection...",
-                    key="reject_feedback"
-                )
-                if st.button("❌ Reject", use_container_width=True, key="reject_btn"):
-                    if feedback and len(feedback.strip()) > 0:
-                        with st.spinner("Rejecting report..."):
-                            result = api_client.submit_review(selected_review_id, "reject", feedback)
+                
+                st.markdown("### Review Decision")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("✅ Approve", type="primary", use_container_width=True):
+                        with st.spinner("Approving report..."):
+                            result = api_client.submit_review(selected_review_id, "approve")
                         if result:
-                            st.warning("Report rejected.")
+                            st.success("✅ Report approved!")
+                            st.balloons()
                             time.sleep(2)
                             st.rerun()
                         else:
-                            st.error("Failed to submit rejection.")
-                    else:
-                        st.error("Please provide a rejection reason.")
-        else:
-            st.warning(f"Report not yet available for task {selected_review_id[:8]}. It may still be processing.")
+                            st.error("❌ Failed to submit review.")
+                
+                with col2:
+                    st.info("💡 Edit functionality coming soon.")
+                
+                with col3:
+                    feedback = st.text_area(
+                        "Rejection Reason",
+                        placeholder="Enter reason for rejection...",
+                        key="reject_feedback"
+                    )
+                    if st.button("❌ Reject", use_container_width=True):
+                        if feedback and len(feedback.strip()) > 0:
+                            with st.spinner("Rejecting report..."):
+                                result = api_client.submit_review(selected_review_id, "reject", feedback)
+                            if result:
+                                st.warning("Report rejected.")
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error("Failed to submit rejection.")
+                        else:
+                            st.error("Please provide a rejection reason.")
     else:
-        st.info("No reports currently pending review. Reports with low confidence scores will appear here for human review.")
+        st.info("No reports currently pending review.")
 
 # ============ TAB 5: ANALYTICS DASHBOARD ============
 with tab5:
     st.markdown("### 📈 Analytics Dashboard")
     st.markdown("---")
     
-    # Get analytics data
     analytics = api_client.get_analytics()
     
     if analytics:
-        # Summary metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.markdown("""
             <div class="metric-card">
-                <h3 style="color: #667eea; margin: 0;">Total Queries</h3>
-                <h1 style="margin: 0;">{}</h1>
-                <p style="color: #999; margin: 0;">All time</p>
+                <h3 style="color: #7c3aed; margin: 0;">Total Queries</h3>
+                <h1 style="color: #e0e0e0; margin: 0;">{}</h1>
+                <p style="color: #9ca3af; margin: 0;">All time</p>
             </div>
             """.format(analytics.get('summary', {}).get('total_queries', 0)), 
             unsafe_allow_html=True)
@@ -1177,9 +965,9 @@ with tab5:
         with col2:
             st.markdown("""
             <div class="metric-card">
-                <h3 style="color: #764ba2; margin: 0;">Today's Queries</h3>
-                <h1 style="margin: 0;">{}</h1>
-                <p style="color: #999; margin: 0;">Last 24 hours</p>
+                <h3 style="color: #9333ea; margin: 0;">Today's Queries</h3>
+                <h1 style="color: #e0e0e0; margin: 0;">{}</h1>
+                <p style="color: #9ca3af; margin: 0;">Last 24 hours</p>
             </div>
             """.format(analytics.get('summary', {}).get('queries_today', 0)), 
             unsafe_allow_html=True)
@@ -1187,9 +975,9 @@ with tab5:
         with col3:
             st.markdown("""
             <div class="metric-card">
-                <h3 style="color: #56ab2f; margin: 0;">Success Rate</h3>
-                <h1 style="margin: 0;">{}%</h1>
-                <p style="color: #999; margin: 0;">Completion rate</p>
+                <h3 style="color: #10b981; margin: 0;">Success Rate</h3>
+                <h1 style="color: #e0e0e0; margin: 0;">{}%</h1>
+                <p style="color: #9ca3af; margin: 0;">Completion rate</p>
             </div>
             """.format(int(analytics.get('performance', {}).get('success_rate', 0) * 100)), 
             unsafe_allow_html=True)
@@ -1197,91 +985,68 @@ with tab5:
         with col4:
             st.markdown("""
             <div class="metric-card">
-                <h3 style="color: #ff5858; margin: 0;">Avg Time</h3>
-                <h1 style="margin: 0;">{}</h1>
-                <p style="color: #999; margin: 0;">Per query</p>
+                <h3 style="color: #f59e0b; margin: 0;">Avg Time</h3>
+                <h1 style="color: #e0e0e0; margin: 0;">{}</h1>
+                <p style="color: #9ca3af; margin: 0;">Per query</p>
             </div>
             """.format(analytics.get('performance', {}).get('average_completion_time', 'N/A')), 
             unsafe_allow_html=True)
         
         st.markdown("---")
         
-        # Charts
         col1, col2 = st.columns(2)
         
         with col1:
-            # Popular topics chart
             if 'popular_topics' in analytics:
                 topics_df = pd.DataFrame(analytics['popular_topics'])
                 fig = px.bar(topics_df, x='count', y='topic', orientation='h',
                             title='Popular Research Topics',
                             color='count',
                             color_continuous_scale='Viridis')
-                fig.update_layout(height=400, showlegend=False)
+                fig.update_layout(
+                    height=400, 
+                    showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#e0e0e0')
+                )
                 st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            # Daily usage trend - FIXED INDENTATION
             if 'daily_usage' in analytics and analytics['daily_usage']:
                 usage_df = pd.DataFrame(analytics['daily_usage'])
                 if not usage_df.empty and 'date' in usage_df.columns:
                     fig = px.line(usage_df, x='date', y='queries',
                                  title='Daily Query Trend',
                                  markers=True)
-                    fig.update_traces(line_color='#667eea', line_width=3)
-                    fig.update_layout(height=400)
+                    fig.update_traces(line_color='#7c3aed', line_width=3)
+                    fig.update_layout(
+                        height=400,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#e0e0e0')
+                    )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No daily usage data available yet")
             else:
                 st.info("Daily usage tracking will be available as you use the system")
-        
-        # Confidence distribution
-        if 'confidence_distribution' in analytics:
-            st.markdown("### Confidence Score Distribution")
-            conf_data = analytics['confidence_distribution']
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("High Confidence", 
-                         f"{conf_data['high']['count']} reports",
-                         f"{conf_data['high']['percentage']:.1f}%")
-            
-            with col2:
-                st.metric("Medium Confidence", 
-                         f"{conf_data['medium']['count']} reports",
-                         f"{conf_data['medium']['percentage']:.1f}%")
-            
-            with col3:
-                st.metric("Low Confidence", 
-                         f"{conf_data['low']['count']} reports",
-                         f"{conf_data['low']['percentage']:.1f}%")
     else:
-        st.info("Analytics data is currently unavailable. Using sample data for demonstration.")
-        
-        # Show sample analytics for demo
-        st.markdown("""
-        <div style="text-align: center; padding: 2rem;">
-            <h2>Sample Analytics View</h2>
-            <p>Analytics will be populated as you use the system</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info("Analytics data is currently unavailable.")
 
 # ============ FOOTER ============
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #999; padding: 2rem 0;">
-    <p>AI Research Assistant v2.0 | M4: API & Frontend Development</p>
-    <p>Built with ❤️ by Kundana Pooskur | DAMG 7245</p>
+<div style="text-align: center; color: #9ca3af; padding: 2rem 0;">
+    <p>AI Research Assistant v2.0 - Dark Theme Edition</p>
+    <p>DAMG 7245</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ============ SIDEBAR (Hidden by default, but accessible) ============
+# ============ SIDEBAR ============
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
     
-    # API Status Check
     try:
         response = requests.get(f"{api_client.base_url}/health", timeout=2)
         if response.status_code == 200:
@@ -1298,7 +1063,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Session Info
     st.markdown("### Session Info")
     try:
         all_tasks = api_client.get_all_tasks()
