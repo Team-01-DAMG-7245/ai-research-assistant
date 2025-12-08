@@ -145,12 +145,13 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
 
         logger.info("Processing user query: %s", user_query[:100])
 
-        # 1) Search Pinecone for top-10 semantically relevant chunks
+        # 1) Search Pinecone for top-15 semantically relevant chunks
+        # (increased from 10 to ensure we have enough sources after deduplication)
         pinecone_start_time = time.time()
-        logger.info("Searching Pinecone for top-10 chunks using user_query")
+        logger.info("Searching Pinecone for top-15 chunks using user_query")
         try:
             pinecone_results = semantic_search(
-                user_query, top_k=10, namespace="research_papers", task_id=task_id
+                user_query, top_k=15, namespace="research_papers", task_id=task_id
             )
             pinecone_duration = time.time() - pinecone_start_time
             logger.info(
@@ -187,6 +188,28 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                     len(chunk_ids),
                     len(pinecone_chunks),
                 )
+            
+            # Merge URL and other metadata from Pinecone results into retrieved chunks
+            # Create a lookup map from chunk_id to Pinecone result
+            pinecone_result_map = {result.get("chunk_id") or result.get("id", ""): result 
+                                  for result in pinecone_results}
+            
+            for chunk in pinecone_chunks:
+                chunk_id = chunk.get("chunk_id") or chunk.get("doc_id", "")
+                if chunk_id in pinecone_result_map:
+                    result = pinecone_result_map[chunk_id]
+                    # Preserve URL from Pinecone metadata if available
+                    if "url" not in chunk or not chunk.get("url"):
+                        chunk["url"] = result.get("url", "")
+                    # Preserve title if not in chunk
+                    if "title" not in chunk or not chunk.get("title"):
+                        chunk["title"] = result.get("title", "")
+                    # Preserve doc_id if not in chunk
+                    if "doc_id" not in chunk or not chunk.get("doc_id"):
+                        chunk["doc_id"] = result.get("doc_id", "")
+                    # Preserve score from Pinecone
+                    if "score" not in chunk:
+                        chunk["score"] = result.get("score", 0.0)
         except Exception as exc:
             log_error_with_context(logger, exc, "s3_retrieval", task_id=task_id, chunk_count=len(chunk_ids))
             pinecone_chunks = []
@@ -211,6 +234,16 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
             new_state["report_draft"] = ""
             return new_state
 
+        # Check if we have minimum sources (5 recommended for good citations)
+        min_sources = 5
+        if len(all_sources) < min_sources:
+            logger.warning(
+                "Only %d sources available for synthesis (recommended minimum: %d) | task_id=%s",
+                len(all_sources),
+                min_sources,
+                task_id
+            )
+        
         # Limit to ~20-30 sources as specified
         max_sources = 30
         if len(all_sources) > max_sources:

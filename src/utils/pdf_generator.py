@@ -154,6 +154,14 @@ def _create_html_document(content: str, title: Optional[str] = None, metadata: O
             page-break-after: avoid;
         }}
         
+        /* Special styling for References heading */
+        h2:last-of-type {{
+            border-top: 2px solid #3498db;
+            border-bottom: 2px solid #95a5a6;
+            padding-top: 20px;
+            margin-top: 40px;
+        }}
+        
         h3 {{
             color: #555;
             margin-top: 25px;
@@ -258,10 +266,11 @@ def _create_html_document(content: str, title: Optional[str] = None, metadata: O
         
         a {{
             color: #3498db;
-            text-decoration: none;
+            text-decoration: underline;
         }}
         
         a:hover {{
+            color: #2980b9;
             text-decoration: underline;
         }}
         
@@ -277,6 +286,31 @@ def _create_html_document(content: str, title: Optional[str] = None, metadata: O
         
         em {{
             color: #555;
+        }}
+        
+        /* Reference links styling - ensure they're clearly clickable */
+        a[href] {{
+            color: #3498db;
+            text-decoration: underline;
+            word-break: break-all;
+        }}
+        
+        /* Make reference links stand out more */
+        h2 ~ ul a[href],
+        h2 ~ ol a[href] {{
+            color: #2980b9;
+            font-weight: 500;
+        }}
+        
+        /* Better spacing for reference lists */
+        h2 + ul, h2 + ol {{
+            margin-top: 15px;
+            page-break-inside: avoid;
+        }}
+        
+        h2 + ul li, h2 + ol li {{
+            margin: 10px 0;
+            padding-left: 5px;
         }}
     </style>
 </head>

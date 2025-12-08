@@ -127,10 +127,35 @@ async def get_report(
         logger.exception(f"Error parsing created_at: {e}, using current time")
         created_at = datetime.utcnow()
     
+    # Format sources as markdown section
+    def format_sources_markdown(sources_list) -> str:
+        """Format sources list as markdown references section"""
+        if not sources_list:
+            return ""
+        
+        md = "\n\n---\n\n## References\n\n"
+        for idx, source in enumerate(sources_list, 1):
+            # Get source_id, title, and url from SourceInfo object
+            source_id = getattr(source, 'source_id', None) or idx
+            title = getattr(source, 'title', 'Unknown') or 'Unknown'
+            url = getattr(source, 'url', '') or ''
+            
+            # Format as numbered list with link if URL available
+            if url:
+                md += f"{source_id}. [{title}]({url})\n"
+            else:
+                md += f"{source_id}. {title}\n"
+        
+        return md
+    
+    # Append sources to report content for markdown and PDF formats
+    sources_markdown = format_sources_markdown(sources)
+    report_with_sources = report + sources_markdown
+    
     # Return in requested format
     if format == "markdown":
         return Response(
-            content=report,
+            content=report_with_sources,
             media_type="text/markdown; charset=utf-8"
         )
     elif format == "pdf":
@@ -158,9 +183,9 @@ async def get_report(
                 'created_at': created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if created_at else None
             }
             
-            # Generate PDF bytes
+            # Generate PDF bytes (with sources included in markdown)
             pdf_bytes = markdown_to_pdf(
-                markdown_content=report,
+                markdown_content=report_with_sources,
                 title=title,
                 metadata=metadata
             )
