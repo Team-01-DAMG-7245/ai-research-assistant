@@ -175,7 +175,8 @@ class WorkflowExecutor:
                     "search_queries": final_state.get("search_queries", []),
                     "num_sources": len(retrieved_chunks),
                     "user_id": user_id,
-                    "hitl_completed": not original_needs_hitl or (final_report and final_report.strip())
+                    "hitl_completed": not original_needs_hitl or (final_report and final_report.strip()),
+                    "validation_result": final_state.get("validation_result", {})
                 }
             )
             
@@ -249,12 +250,14 @@ class WorkflowExecutor:
                     "success": False,
                     "error": "rejection_reason is required for reject action"
                 }
-            success = task_manager.reject_review(task_id, rejection_reason)
+            success, original_query = task_manager.reject_review(task_id, rejection_reason)
             if success:
+                # Return the original query so the caller can restart the workflow
                 return {
                     "success": True,
                     "task_id": task_id,
-                    "action": "reject"
+                    "action": "reject",
+                    "original_query": original_query
                 }
         else:
             return {

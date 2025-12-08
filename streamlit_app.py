@@ -413,6 +413,104 @@ def display_task_details(task_id: str):
             if confidence < 0.7:
                 st.info(f"📊 **Confidence Score: {confidence:.2%}** - Below threshold (0.70). Review recommended.")
             
+            # Display validation breakdown showing what caused deductions
+            metadata = report_data.get("metadata", {}) if report_data else {}
+            validation_result = metadata.get("validation_result", {})
+            
+            if validation_result:
+                st.markdown("---")
+                st.subheader("📋 Validation Breakdown")
+                
+                # Calculate deductions
+                llm_confidence = validation_result.get("confidence", 0.0)
+                final_confidence = validation_result.get("final_confidence", confidence)
+                
+                # Determine what deductions were applied
+                invalid_citations = validation_result.get("invalid_citations", [])
+                unsupported_claims = validation_result.get("unsupported_claims", [])
+                has_contradictions = validation_result.get("has_contradictions", False)
+                issues = validation_result.get("issues", [])
+                
+                deductions = []
+                if invalid_citations:
+                    deductions.append({
+                        "reason": f"Invalid Citations ({len(invalid_citations)} found)",
+                        "details": f"Citations {invalid_citations} are outside the valid source range",
+                        "penalty": -0.3,
+                        "icon": "❌"
+                    })
+                
+                if len(unsupported_claims) >= 3:
+                    deductions.append({
+                        "reason": f"Unsupported Claims ({len(unsupported_claims)} found)",
+                        "details": f"{len(unsupported_claims)} claims lack proper citations",
+                        "penalty": -0.2,
+                        "icon": "⚠️"
+                    })
+                elif unsupported_claims:
+                    # Show but no penalty yet
+                    deductions.append({
+                        "reason": f"Unsupported Claims ({len(unsupported_claims)} found)",
+                        "details": f"{len(unsupported_claims)} claims lack proper citations (no penalty: <3)",
+                        "penalty": 0.0,
+                        "icon": "ℹ️"
+                    })
+                
+                if has_contradictions:
+                    deductions.append({
+                        "reason": "Contradictions Detected",
+                        "details": "Report contains contradictory information or inconsistent claims",
+                        "penalty": -0.3,
+                        "icon": "⚠️"
+                    })
+                
+                # Display confidence score breakdown
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Base Confidence", f"{llm_confidence:.2%}", 
+                             help="Initial confidence score from LLM validation")
+                with col2:
+                    total_deduction = sum(d["penalty"] for d in deductions)
+                    if total_deduction < 0:
+                        st.metric("Total Deductions", f"{total_deduction:.2f}",
+                                 help="Total penalty points deducted")
+                    else:
+                        st.metric("Total Deductions", "None")
+                with col3:
+                    st.metric("Final Confidence", f"{final_confidence:.2%}",
+                             help="Final confidence after applying deductions")
+                
+                # Display deductions
+                if deductions:
+                    st.markdown("#### Deductions Applied:")
+                    for deduction in deductions:
+                        with st.expander(f"{deduction['icon']} {deduction['reason']} (-{abs(deduction['penalty']):.1f} points)" if deduction['penalty'] < 0 else f"{deduction['icon']} {deduction['reason']}"):
+                            st.write(deduction['details'])
+                            if deduction['reason'].startswith("Invalid Citations"):
+                                st.code(f"Invalid citation numbers: {invalid_citations}", language=None)
+                            elif deduction['reason'].startswith("Unsupported Claims") and len(unsupported_claims) > 0:
+                                st.write("**Unsupported Claims:**")
+                                for i, claim in enumerate(unsupported_claims[:5], 1):  # Show first 5
+                                    st.write(f"{i}. {claim}")
+                                if len(unsupported_claims) > 5:
+                                    st.write(f"... and {len(unsupported_claims) - 5} more")
+                
+                # Display general issues
+                if issues:
+                    st.markdown("#### General Issues:")
+                    for i, issue in enumerate(issues[:5], 1):  # Show first 5 issues
+                        st.write(f"{i}. {issue}")
+                    if len(issues) > 5:
+                        st.write(f"... and {len(issues) - 5} more issues")
+                
+                # Citation coverage
+                citation_coverage = validation_result.get("citation_coverage", 0.0)
+                if citation_coverage > 0:
+                    st.markdown(f"**Citation Coverage:** {citation_coverage:.2%}")
+                
+                if not deductions and not issues:
+                    st.success("✅ No validation issues found. Confidence deductions are based solely on LLM assessment.")
+            
             st.markdown("---")
             st.subheader("🔍 Human-in-the-Loop Review")
             
@@ -493,7 +591,7 @@ def display_task_details(task_id: str):
             if st.session_state.auto_refresh:
                 # Refresh task status before rerun
                 refresh_task_status(task_id)
-                time.sleep(2)  # Refresh every 2 seconds for processing tasks
+                time.sleep(7)  # Refresh every 7 seconds for processing tasks
                 st.rerun()
             else:
                 # Show manual refresh hint
@@ -529,8 +627,7 @@ with st.sidebar:
     st.session_state.auto_refresh = st.checkbox("🔄 Auto-refresh", value=st.session_state.auto_refresh)
     
     if st.session_state.auto_refresh:
-        st.caption("Auto-refreshing every 2-3 seconds for active tasks")
-        st.caption("Refresh interval: 2s (processing), 3s (other pages)")
+        st.caption("Auto-refreshing every 7 seconds for active tasks")
 
 
 # Helper function to refresh task status
@@ -617,7 +714,7 @@ if page == "🏠 Home":
         # Auto-refresh if task is still processing
         task = st.session_state.tasks.get(st.session_state.current_task_id, {})
         if task.get('status') in ['queued', 'processing'] and st.session_state.auto_refresh:
-            time.sleep(2)
+            time.sleep(7)
             st.rerun()
 
 
@@ -674,7 +771,7 @@ elif page == "📊 Task History":
             # Auto-refresh if task is still processing
             task = st.session_state.tasks.get(selected_task_id, {})
             if task.get('status') in ['queued', 'processing'] and st.session_state.auto_refresh:
-                time.sleep(2)
+                time.sleep(7)
                 st.rerun()
     else:
         st.info("No tasks yet. Submit a research query from the Home page to get started.")
@@ -691,13 +788,13 @@ elif page == "💰 Cost Dashboard":
     
     # Auto-refresh indicator
     if st.session_state.auto_refresh:
-        st.info("🔄 Auto-refresh enabled (every 5 seconds)")
+        st.info("🔄 Auto-refresh enabled (every 7 seconds)")
     
     cost_data = load_cost_data()
     
     # Auto-refresh if enabled
     if st.session_state.auto_refresh:
-        time.sleep(3)
+        time.sleep(7)
         st.rerun()
     
     if cost_data:

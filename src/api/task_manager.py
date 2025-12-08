@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from pathlib import Path
 from threading import Lock
 
@@ -436,44 +436,75 @@ class TaskManager:
         logger.info(f"Edited report for task {task_id}")
         return True
     
-    def reject_review(self, task_id: str, rejection_reason: str) -> bool:
+    def reject_review(self, task_id: str, rejection_reason: str) -> Tuple[bool, Optional[str]]:
         """
-        Reject a task report during HITL review
+        Reject a task report during HITL review and prepare for regeneration
         
         Args:
             task_id: Task identifier
             rejection_reason: Reason for rejection
             
         Returns:
-            True if successful, False if task not found or not pending review
+            Tuple of (success: bool, original_query: Optional[str])
+            Returns the original query if successful, None otherwise
         """
         task = self.get_task(task_id)
         if not task or task['status'] != TaskStatus.PENDING_REVIEW.value:
-            return False
+            return (False, None)
+        
+        original_query = task.get('query', '')
+        if not original_query:
+            logger.error(f"Cannot reject task {task_id}: original query not found")
+            return (False, None)
         
         now = datetime.utcnow().isoformat()
+        
+        # Get existing metadata and add rejection info
+        existing_metadata = task.get('metadata', {})
+        if isinstance(existing_metadata, str):
+            try:
+                existing_metadata = json.loads(existing_metadata)
+            except:
+                existing_metadata = {}
+        elif not isinstance(existing_metadata, dict):
+            existing_metadata = {}
+        
+        # Track rejection history
+        rejection_history = existing_metadata.get('rejection_history', [])
+        rejection_history.append({
+            'reason': rejection_reason,
+            'timestamp': now,
+            'attempt': len(rejection_history) + 1
+        })
+        existing_metadata['rejection_history'] = rejection_history
+        existing_metadata['last_rejection_reason'] = rejection_reason
         
         with _db_lock:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # Reset status to PROCESSING, clear error, keep query
             cursor.execute('''
                 UPDATE tasks SET
                     status = ?,
-                    error = ?,
+                    error = NULL,
                     message = ?,
-                    updated_at = ?
+                    progress = ?,
+                    report = NULL,
+                    updated_at = ?,
+                    metadata = ?
                 WHERE task_id = ?
             ''', (
-                TaskStatus.FAILED.value,
-                rejection_reason,
-                "Report rejected",
+                TaskStatus.PROCESSING.value,
+                "Report rejected. Regenerating...",
+                10.0,  # Reset progress to start
                 now,
+                json.dumps(existing_metadata),
                 task_id
             ))
             
             conn.commit()
             conn.close()
         
-        logger.info(f"Rejected report for task {task_id}: {rejection_reason}")
-        return True
+        logger.info(f"Rejected report for task {task_id}: {rejection_reason}. Preparing for regeneration.")
+        return (True, original_query)

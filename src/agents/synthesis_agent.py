@@ -360,6 +360,20 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
         new_state["retrieved_chunks"] = all_sources
         new_state["source_count"] = len(all_sources)
         new_state["error"] = None
+        
+        # Update task status after synthesis completes
+        if TASK_MANAGER_AVAILABLE:
+            try:
+                task_manager = get_task_manager()
+                task_manager.update_task_status(
+                    task_id,
+                    TaskStatus.PROCESSING,
+                    progress=70.0,
+                    message="Synthesis complete. Validating report..."
+                )
+                logger.info("Updated task status: Synthesis complete | task_id=%s", task_id)
+            except Exception as e:
+                logger.warning("Failed to update task status after synthesis: %s", e)
 
         total_duration = time.time() - start_time
         log_performance_metrics(
