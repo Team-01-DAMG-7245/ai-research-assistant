@@ -213,7 +213,8 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
                 "unsupported_claims": [],
             }
             new_state["confidence_score"] = 0.0
-            new_state["needs_hitl"] = True
+            # Don't set needs_hitl=True if there's an error - this prevents routing to HITL review
+            new_state["needs_hitl"] = False
             return new_state
 
         logger.info("Validating report | report_length=%d chars | word_count=%d", 

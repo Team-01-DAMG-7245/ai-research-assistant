@@ -249,11 +249,10 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
                 "Previous error detected in state, skipping HITL review | task_id=%s | error=%s",
                 task_id, previous_error
             )
-            # In non-interactive mode, propagate the error
-            if not _is_interactive_mode():
-                new_state["final_report"] = ""
-                new_state["error"] = previous_error
-                return new_state
+            # Always propagate the error (don't proceed with HITL if there's a previous error)
+            new_state["final_report"] = ""
+            new_state["error"] = previous_error
+            return new_state
         
         # 3) Extract required information
         report_draft = state.get("report_draft", "")
@@ -284,22 +283,16 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
                 
                 # If still no report found
                 if not report_draft:
-                    # In non-interactive mode, this indicates a synthesis failure
-                    if not _is_interactive_mode():
-                        error_msg = "Synthesis agent failed to generate report_draft. Cannot proceed with HITL review."
-                        logger.error(
-                            "No report found in state for HITL review in API mode | task_id=%s | state_keys=%s | error=%s",
-                            task_id, list(state.keys()), error_msg
-                        )
-                        # Set error to indicate synthesis failure
-                        new_state["error"] = error_msg
-                        new_state["final_report"] = ""
-                        return new_state
-                    else:
-                        error_msg = "report_draft is required for HITL review"
-                        log_error_with_context(logger, ValueError(error_msg), "hitl_review_node", task_id=task_id)
-                        new_state["error"] = error_msg
-                        return new_state
+                    # This indicates a synthesis failure - provide clear error message
+                    error_msg = "Synthesis agent failed to generate report_draft. Cannot proceed with HITL review."
+                    logger.error(
+                        "No report found in state for HITL review | task_id=%s | state_keys=%s | previous_error=%s | error=%s",
+                        task_id, list(state.keys()), state.get("error"), error_msg
+                    )
+                    # Set error to indicate synthesis failure
+                    new_state["error"] = error_msg
+                    new_state["final_report"] = ""
+                    return new_state
 
         logger.info(
             "Review information | report_length=%d chars | word_count=%d | confidence=%.2f",

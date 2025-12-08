@@ -229,47 +229,80 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register exception handlers
-from src.api.error_handlers import register_exception_handlers
-register_exception_handlers(app)
+# Register exception handlers (if available)
+try:
+    from src.api.error_handlers import register_exception_handlers
+    register_exception_handlers(app)
+    logger.info("Exception handlers registered")
+except ImportError as e:
+    logger.warning(f"Could not import error handlers: {e}")
 
-# Import middleware
-from src.api.middleware import (
-    RequestIDMiddleware,
-    LoggingMiddleware,
-    RateLimitMiddleware,
-    CompressionMiddleware,
-    get_cors_middleware_config,
-)
-from src.api.error_handlers import RequestValidationMiddleware
+# Import middleware (if available)
+try:
+    from src.api.middleware import (
+        RequestIDMiddleware,
+        LoggingMiddleware,
+        RateLimitMiddleware,
+        CompressionMiddleware,
+        get_cors_middleware_config,
+    )
+    from src.api.error_handlers import RequestValidationMiddleware
+    
+    # Add middleware in correct order (last added = first executed/outermost)
+    # Order matters: outermost middleware runs first, innermost runs last
+    # 
+    # Execution order (from outermost to innermost):
+    # 1. CompressionMiddleware - compresses responses
+    # 2. RequestValidationMiddleware - validates and sanitizes requests
+    # 3. RateLimitMiddleware - enforces rate limits
+    # 4. CORS Middleware - handles CORS
+    # 5. RequestIDMiddleware - generates request IDs
+    # 6. LoggingMiddleware - logs requests/responses (needs request_id)
+    # 7. ErrorHandlingMiddleware - catches and formats errors (innermost)
 
-# Add middleware in correct order (last added = first executed/outermost)
-# Order matters: outermost middleware runs first, innermost runs last
-# 
-# Execution order (from outermost to innermost):
-# 1. CompressionMiddleware - compresses responses
-# 2. RequestValidationMiddleware - validates and sanitizes requests
-# 3. RateLimitMiddleware - enforces rate limits
-# 4. CORS Middleware - handles CORS
-# 5. RequestIDMiddleware - generates request IDs
-# 6. LoggingMiddleware - logs requests/responses (needs request_id)
-# 7. ErrorHandlingMiddleware - catches and formats errors (innermost)
+    app.add_middleware(ErrorHandlingMiddleware)  # Innermost - catches all errors
+    app.add_middleware(LoggingMiddleware)  # Logs requests/responses
+    app.add_middleware(RequestIDMiddleware)  # Generates request IDs
+    app.add_middleware(
+        CORSMiddleware,
+        **get_cors_middleware_config()
+    )  # CORS handling
+    app.add_middleware(RateLimitMiddleware)  # Rate limiting
+    app.add_middleware(RequestValidationMiddleware)  # Request validation
+    app.add_middleware(CompressionMiddleware)  # Response compression (outermost)
+    logger.info("All middleware registered")
+    
+except ImportError as e:
+    logger.warning(f"Could not import middleware: {e}")
+    # Add basic CORS middleware as fallback
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(ErrorHandlingMiddleware)
 
-app.add_middleware(ErrorHandlingMiddleware)  # Innermost - catches all errors
-app.add_middleware(LoggingMiddleware)  # Logs requests/responses
-app.add_middleware(RequestIDMiddleware)  # Generates request IDs
-app.add_middleware(
-    CORSMiddleware,
-    **get_cors_middleware_config()
-)  # CORS handling
-app.add_middleware(RateLimitMiddleware)  # Rate limiting
-app.add_middleware(RequestValidationMiddleware)  # Request validation
-app.add_middleware(CompressionMiddleware)  # Response compression (outermost)
+# Include routers - CRITICAL: Use correct imports
+try:
+    from src.api.endpoints import research, review, tasks
+    app.include_router(research.router)
+    app.include_router(review.router)
+    app.include_router(tasks.router)
+    logger.info("Core endpoints registered (research, review, tasks)")
+except ImportError as e:
+    logger.error(f"CRITICAL: Could not import core endpoints: {e}")
+    # This is critical - the API won't work without these
+    raise
 
-# Include routers
-from src.api.endpoints import research, review
-app.include_router(research.router)
-app.include_router(review.router)
+# Import enhanced endpoints if available
+try:
+    from src.api.enhanced_endpoints import router as enhanced_router
+    app.include_router(enhanced_router)
+    logger.info("Enhanced endpoints registered")
+except ImportError as e:
+    logger.warning(f"Enhanced endpoints not available: {e}")
 
 
 # ============================================================================
@@ -393,4 +426,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
