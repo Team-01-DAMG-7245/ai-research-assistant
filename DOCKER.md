@@ -14,27 +14,30 @@ This guide explains how to dockerize and deploy the AI Research Assistant on EC2
 ### 1. Build and Run Locally
 
 ```bash
-# Build and start all services
-docker-compose up -d
+# Build 
+docker compose build
+
+# Start all services
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 ### 2. Production Deployment
 
 ```bash
 # Build for production
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # Start in production mode
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ## Services

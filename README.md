@@ -15,6 +15,12 @@ python src/api/main.py
 # Start Streamlit Web Interface
 streamlit run streamlit_app.py
 
+# Docker (Alternative)
+docker compose build                    # Build images
+docker compose up -d                    # Start services
+docker compose logs -f                  # View logs
+docker compose down                     # Stop services
+
 # Run Tests
 pytest tests/test_api.py -v
 
@@ -67,14 +73,19 @@ See [Quick Start](#quick-start) section below for detailed instructions.
     - ✅ Report preview and editing
     - ✅ HITL review interface
     - ✅ Cost dashboard
+  - ✅ Docker containerization
+    - ✅ Docker Compose setup for local development
+    - ✅ Multi-container orchestration (API + Streamlit)
+    - ✅ Production Docker configuration
 
-- 📋 **M5**: Cloud Deployment & Testing (Planned)
-  - Deploy FastAPI and Streamlit on AWS EC2
-  - Configure production environment and environment variables
-  - Write unit tests for core functions (chunking, citation extraction, validation)
-  - Implement integration tests for complete workflow
-  - Set up GitHub Actions CI/CD pipeline
-  - Test with 10-15 sample queries across different topics
+- 📋 **M5**: Cloud Deployment & Testing (In Progress)
+  - ✅ Docker deployment setup
+  - 📋 Deploy FastAPI and Streamlit on AWS EC2
+  - 📋 Configure production environment and environment variables
+  - 📋 Write unit tests for core functions (chunking, citation extraction, validation)
+  - 📋 Implement integration tests for complete workflow
+  - 📋 Set up GitHub Actions CI/CD pipeline
+  - 📋 Test with 10-15 sample queries across different topics
 
 - 📋 **M6**: Final Polish & Documentation (Planned)
   - Comprehensive testing and bug fixes
@@ -113,6 +124,10 @@ cp .env.example .env  # Edit with your API keys
 
 # Setup S3 bucket
 python scripts/setup_s3.py
+
+# Setup Pinecone index
+python scripts/list_pinecone_indexes.py        # List existing indexes
+python scripts/create_pinecone_index.py      # Create new index (if needed)
 ```
 
 **Required environment variables** (in `.env`):
@@ -151,6 +166,29 @@ streamlit run streamlit_app.py
 Streamlit interface available at:
 - **Web UI**: `http://localhost:8501`
 - Features: Query submission, real-time status tracking, report preview, HITL review, cost dashboard
+
+### 3b. Docker Deployment (Alternative)
+
+```bash
+# Build and start services
+docker compose build
+
+# View logs
+docker compose logs -f
+
+# Rebuild after code changes
+docker compose build
+docker compose up -d
+
+# Stop services
+docker compose down
+
+# Access services
+# API: http://localhost:8000
+# Streamlit: http://localhost:8501
+```
+
+See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
 
 ### 4. API Usage
 
@@ -273,17 +311,24 @@ See `src/agents/` for detailed agent implementations.
   - ✅ Report preview and editing
   - ✅ HITL review interface
   - ✅ Cost dashboard
+- ✅ Docker containerization
+  - ✅ Docker Compose for local development
+  - ✅ Production Docker configuration
 
-### M5: Cloud Deployment & Testing (Planned)
+### M5: Cloud Deployment & Testing (In Progress)
 
 **Deliverable:** Production-ready system deployed on AWS with automated testing
 
-- Deploy FastAPI and Streamlit on AWS EC2
-- Configure production environment and environment variables
-- Write unit tests for core functions (chunking, citation extraction, validation)
-- Implement integration tests for complete workflow
-- Set up GitHub Actions CI/CD pipeline
-- Test with 10-15 sample queries across different topics
+**Completed:**
+- ✅ Docker deployment setup
+
+**In Progress:**
+- 📋 Deploy FastAPI and Streamlit on AWS EC2
+- 📋 Configure production environment and environment variables
+- 📋 Write unit tests for core functions (chunking, citation extraction, validation)
+- 📋 Implement integration tests for complete workflow
+- 📋 Set up GitHub Actions CI/CD pipeline
+- 📋 Test with 10-15 sample queries across different topics
 
 ### M6: Final Polish & Documentation (Planned)
 
@@ -339,20 +384,7 @@ pip install flake8 pylint && flake8 src/ tests/ && pylint src/
 
 ## Production Deployment
 
-### Docker Deployment (Recommended)
-
-```bash
-# Build and start with Docker Compose
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-See [DOCKER.md](DOCKER.md) for detailed deployment instructions including EC2 setup.
+See [DOCKER.md](DOCKER.md) for detailed Docker deployment instructions including production setup and EC2 deployment.
 
 ### Manual Deployment
 
