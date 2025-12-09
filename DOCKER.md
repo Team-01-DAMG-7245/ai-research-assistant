@@ -13,86 +13,73 @@ This guide explains how to dockerize and deploy the AI Research Assistant on EC2
 
 ### 1. Build and Run Locally
 
-**Using Docker Compose Profiles:**
+**Simple Commands (No Profiles Needed):**
 
-The project uses Docker Compose profiles to selectively start services. By default, only API and Streamlit start. Airflow services require the `--profile airflow` flag.
+All services are built together, but you can selectively start only what you need.
 
-**Default (API + Streamlit only):**
+**Build Everything (including Airflow):**
 ```bash
-# Build only API and Streamlit
+docker compose build
+```
+
+**Start Only API + Streamlit (EC2/Production):**
+```bash
+docker compose up -d api streamlit
+```
+
+**Start Everything (including Airflow):**
+```bash
+docker compose up -d
+```
+
+**Common Commands:**
+```bash
+# Build all services
 docker compose build
 
-# Start only API and Streamlit
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop services
-docker compose down
-```
-
-**With Airflow (all services):**
-```bash
-# Build all services including Airflow
-docker compose --profile airflow build
-
-# Start all services including Airflow
-docker compose --profile airflow up -d
-
-# View logs
-docker compose logs -f
-
-# Stop services
-docker compose down
-```
-
-**Profile Reference:**
-- **No profile** (default): Starts `api` and `streamlit` services
-- **`--profile airflow`**: Includes all Airflow services (`airflow-postgres`, `airflow-webserver`, `airflow-scheduler`, `airflow-init`)
-
-**Examples:**
-```bash
-# Start only API and Streamlit
-docker compose up
+# Start only API and Streamlit (recommended for EC2)
+docker compose up -d api streamlit
 
 # Start everything including Airflow
-docker compose --profile airflow up
+docker compose up -d
 
-# Build specific services
-docker compose build api streamlit
-docker compose --profile airflow build
-
-# View logs for specific services
+# View logs for API and Streamlit
 docker compose logs -f api streamlit
-docker compose --profile airflow logs -f
+
+# View all logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
 ```
 
 ### 2. Production Deployment
 
-**Without Airflow (API + Streamlit only):**
+**EC2 / Production (API + Streamlit only):**
 ```bash
-# Build for production (API + Streamlit)
+# Build all services (including Airflow images for future use)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
-# Start in production mode
+# Start only API and Streamlit in production mode
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api streamlit
+
+# View logs
+docker compose logs -f api streamlit
+```
+
+**With Airflow (all services):**
+```bash
+# Build all services for production
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+
+# Start everything including Airflow
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # View logs
 docker compose logs -f
 ```
 
-**With Airflow (all services):**
-```bash
-# Build for production (all services)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow build
-
-# Start in production mode
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d
-
-# View logs
-docker compose logs -f
-```
+**Note:** Building with `docker compose build` creates all images (including Airflow), but you can selectively start only the services you need. This is perfect for EC2 where you want all images built but only run API and Streamlit to save resources.
 
 ## Services
 

@@ -57,10 +57,8 @@ services:
     networks:
       - ai-research-network
 
-  # Airflow services (use --profile airflow to start)
+  # Airflow services (built but not started by default - use: docker compose up airflow-postgres airflow-webserver airflow-scheduler)
   airflow-postgres:
-    profiles:
-      - airflow
     image: postgres:15
     container_name: ai-research-airflow-postgres
     environment:
@@ -79,8 +77,6 @@ services:
     restart: unless-stopped
 
   airflow-webserver:
-    profiles:
-      - airflow
     build:
       context: .
       dockerfile: Dockerfile.airflow
@@ -122,8 +118,6 @@ services:
       start_period: 60s
 
   airflow-scheduler:
-    profiles:
-      - airflow
     build:
       context: .
       dockerfile: Dockerfile.airflow
@@ -155,8 +149,6 @@ services:
     restart: unless-stopped
 
   airflow-init:
-    profiles:
-      - airflow
     build:
       context: .
       dockerfile: Dockerfile.airflow
@@ -168,7 +160,7 @@ services:
         function ver() {
           printf "%04d%04d%04d%04d" $${1//./ }
         }
-        airflow_version=$$(AIRFLOW__LOGGING__LOGGING_LEVEL=INFO && airflow version)
+        airflow_version=$$(AIRFLOW__LOGGING__LOGGING_LEVEL=INFO && /usr/local/bin/entrypoint airflow version 2>&1 | grep -oP '^\d+\.\d+\.\d+' | head -1)
         airflow_version_comparable=$$(ver $${airflow_version})
         min_airflow_version=2.2.0
         min_airflow_version_comparable=$$(ver $${min_airflow_version})
@@ -223,7 +215,7 @@ services:
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "$${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
-        exec /entrypoint airflow version
+        exec /usr/local/bin/entrypoint airflow version
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
