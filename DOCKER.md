@@ -13,11 +13,16 @@ This guide explains how to dockerize and deploy the AI Research Assistant on EC2
 
 ### 1. Build and Run Locally
 
+**Using Docker Compose Profiles:**
+
+The project uses Docker Compose profiles to selectively start services. By default, only API and Streamlit start. Airflow services require the `--profile airflow` flag.
+
+**Default (API + Streamlit only):**
 ```bash
-# Build 
+# Build only API and Streamlit
 docker compose build
 
-# Start all services
+# Start only API and Streamlit
 docker compose up -d
 
 # View logs
@@ -27,14 +32,63 @@ docker compose logs -f
 docker compose down
 ```
 
+**With Airflow (all services):**
+```bash
+# Build all services including Airflow
+docker compose --profile airflow build
+
+# Start all services including Airflow
+docker compose --profile airflow up -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+**Profile Reference:**
+- **No profile** (default): Starts `api` and `streamlit` services
+- **`--profile airflow`**: Includes all Airflow services (`airflow-postgres`, `airflow-webserver`, `airflow-scheduler`, `airflow-init`)
+
+**Examples:**
+```bash
+# Start only API and Streamlit
+docker compose up
+
+# Start everything including Airflow
+docker compose --profile airflow up
+
+# Build specific services
+docker compose build api streamlit
+docker compose --profile airflow build
+
+# View logs for specific services
+docker compose logs -f api streamlit
+docker compose --profile airflow logs -f
+```
+
 ### 2. Production Deployment
 
+**Without Airflow (API + Streamlit only):**
 ```bash
-# Build for production
+# Build for production (API + Streamlit)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # Start in production mode
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# View logs
+docker compose logs -f
+```
+
+**With Airflow (all services):**
+```bash
+# Build for production (all services)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow build
+
+# Start in production mode
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d
 
 # View logs
 docker compose logs -f
@@ -142,12 +196,26 @@ nano .env  # Edit with your API keys
 
 ### 4. Build and Deploy
 
+**Without Airflow (API + Streamlit only):**
 ```bash
 # Build images
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # Start services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Check status
+docker compose ps
+docker compose logs -f
+```
+
+**With Airflow (all services):**
+```bash
+# Build images (all services)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow build
+
+# Start services (all services)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d
 
 # Check status
 docker compose ps
@@ -256,12 +324,22 @@ docker compose restart api
 
 ### Update Application
 
+**Without Airflow:**
 ```bash
 # Pull latest code
 git pull
 
 # Rebuild and restart
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+**With Airflow:**
+```bash
+# Pull latest code
+git pull
+
+# Rebuild and restart (all services)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d --build
 ```
 
 ### Backup Data

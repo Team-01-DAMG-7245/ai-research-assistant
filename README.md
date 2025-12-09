@@ -16,8 +16,9 @@ python src/api/main.py
 streamlit run streamlit_app.py
 
 # Docker (Alternative)
-docker compose build                    # Build images
-docker compose up -d                    # Start services
+docker compose build                    # Build API + Streamlit
+docker compose up -d                    # Start API + Streamlit
+docker compose --profile airflow up -d  # Start all services (incl. Airflow)
 docker compose logs -f                  # View logs
 docker compose down                     # Stop services
 
@@ -173,25 +174,46 @@ Streamlit interface available at:
 
 ### 3b. Docker Deployment (Alternative)
 
+**Using Docker Compose Profiles:**
+
+The project uses Docker Compose profiles to selectively start services:
+
+**Default (API + Streamlit only):**
 ```bash
-# Build and start services (includes Airflow)
+# Build and start only API and Streamlit
 docker compose build
+docker compose up -d
 
 # View logs
 docker compose logs -f
 
-# Rebuild after code changes
-docker compose build
-docker compose up -d
+# Stop services
+docker compose down
+```
+
+**With Airflow (all services):**
+```bash
+# Build and start all services including Airflow
+docker compose --profile airflow build
+docker compose --profile airflow up -d
+
+# View logs
+docker compose logs -f
 
 # Stop services
 docker compose down
-
-# Access services
-# API: http://localhost:8000
-# Streamlit: http://localhost:8501
-# Airflow: http://localhost:8080 (username: airflow, password: airflow)
 ```
+
+**Service Access:**
+- API: http://localhost:8000
+- Streamlit: http://localhost:8501
+- Airflow: http://localhost:8080 (username: airflow, password: airflow)
+
+**Quick Reference:**
+- `docker compose up` - Starts API and Streamlit (default)
+- `docker compose --profile airflow up` - Starts all services including Airflow
+- `docker compose build` - Builds API and Streamlit images
+- `docker compose --profile airflow build` - Builds all images including Airflow
 
 See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
 See [AIRFLOW.md](AIRFLOW.md) for Airflow setup and usage.
