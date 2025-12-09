@@ -54,6 +54,21 @@ docker compose logs -f
 - Cost dashboard
 - Health check: `http://localhost:8501/_stcore/health`
 
+### Airflow Services
+- **Airflow Webserver** (Port 8080): Web UI for monitoring and managing DAGs
+  - Access at: `http://localhost:8080`
+  - Default credentials: `airflow` / `airflow`
+- **Airflow Scheduler**: Executes scheduled DAGs
+- **Airflow Postgres**: Metadata database for Airflow
+- **Airflow Init**: Initialization container (runs once)
+
+The Airflow setup orchestrates the data ingestion pipeline:
+1. **ingest_arxiv_papers**: Fetches papers from arXiv and uploads to S3
+2. **process_pdfs**: Processes PDFs into text chunks
+3. **generate_embeddings**: Creates embeddings and uploads to Pinecone
+
+Default schedule: Daily at 2 AM UTC (configurable in DAG)
+
 ## Environment Variables
 
 Create a `.env` file in the project root with:
@@ -95,9 +110,10 @@ sudo yum install docker -y
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+# Install Docker Compose V2 (plugin, comes with Docker Desktop or can be installed separately)
+# For Linux, Docker Compose V2 is included with Docker Engine 20.10+
+# Verify installation:
+docker compose version
 
 # Log out and back in for group changes to take effect
 exit
@@ -128,14 +144,14 @@ nano .env  # Edit with your API keys
 
 ```bash
 # Build images
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # Start services
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Check status
-docker-compose ps
-docker-compose logs -f
+docker compose ps
+docker compose logs -f
 ```
 
 ### 5. Configure Security Groups
@@ -143,6 +159,7 @@ docker-compose logs -f
 In AWS Console, configure EC2 Security Group to allow:
 - Port 8000 (API) - from your IP or load balancer
 - Port 8501 (Streamlit) - from your IP or load balancer
+- Port 8080 (Airflow) - from your IP only (recommended: restrict access)
 - Port 22 (SSH) - from your IP only
 
 ### 6. Set Up Reverse Proxy (Optional but Recommended)
@@ -197,21 +214,44 @@ sudo systemctl enable nginx
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f api
-docker-compose logs -f streamlit
+docker compose logs -f api
+docker compose logs -f streamlit
+docker compose logs -f airflow-webserver
+docker compose logs -f airflow-scheduler
+```
+
+### Airflow Management
+
+```bash
+# Access Airflow Web UI
+# Open browser: http://localhost:8080
+# Login: airflow / airflow
+
+# View DAGs
+docker compose exec airflow-webserver airflow dags list
+
+# Trigger a DAG manually
+docker compose exec airflow-webserver airflow dags trigger arxiv_daily_ingestion
+
+# Pause/Unpause a DAG
+docker compose exec airflow-webserver airflow dags pause arxiv_daily_ingestion
+docker compose exec airflow-webserver airflow dags unpause arxiv_daily_ingestion
+
+# View task logs
+docker compose exec airflow-webserver airflow tasks logs arxiv_daily_ingestion ingest_arxiv_papers
 ```
 
 ### Restart Services
 
 ```bash
 # Restart all
-docker-compose restart
+docker compose restart
 
 # Restart specific service
-docker-compose restart api
+docker compose restart api
 ```
 
 ### Update Application
@@ -221,7 +261,7 @@ docker-compose restart api
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ### Backup Data
@@ -240,14 +280,14 @@ tar -xzf backup-YYYYMMDD.tar.gz
 
 ```bash
 # Check logs
-docker-compose logs
+docker compose logs
 
 # Check if ports are in use
 sudo netstat -tulpn | grep -E '8000|8501'
 
 # Check Docker status
 docker ps -a
-docker-compose ps
+docker compose ps
 ```
 
 ### API not accessible
@@ -257,10 +297,10 @@ docker-compose ps
 curl http://localhost:8000/health
 
 # Check if container is running
-docker-compose ps api
+docker compose ps api
 
 # Check API logs
-docker-compose logs api
+docker compose logs api
 ```
 
 ### Streamlit can't connect to API
@@ -270,7 +310,7 @@ docker-compose logs api
 # Should be: http://api:8000 (internal Docker network)
 
 # Test connectivity from Streamlit container
-docker-compose exec streamlit curl http://api:8000/health
+docker compose exec streamlit curl http://api:8000/health
 ```
 
 ### Out of memory
@@ -308,3 +348,66 @@ For high traffic, consider:
 - Right-size instance types
 - Use CloudWatch for monitoring
 - Set up auto-scaling if needed
+
+## Airflow Configuration
+
+### Changing DAG Schedule
+
+Edit `dags/arxiv_ingestion_dag.py` to modify the schedule:
+
+```python
+dag = DAG(
+    'arxiv_daily_ingestion',
+    schedule_interval='0 2 * * *',  # Daily at 2 AM UTC
+    # Options:
+    # '0 2 * * *' - Daily at 2 AM
+    # '0 2 * * 0' - Weekly on Sunday at 2 AM
+    # '@daily' - Once per day
+    # '@weekly' - Once per week
+    # None - Manual trigger only
+)
+```
+
+### Adjusting Paper Count
+
+Modify the `max_papers` parameter in the DAG:
+
+```python
+ingest_papers = PythonOperator(
+    task_id='ingest_arxiv_papers',
+    python_callable=run_ingestion_task,
+    op_kwargs={
+        'max_papers': 100,  # Change this value
+        'categories': ['cs.AI', 'cs.LG', 'cs.CL'],
+    },
+)
+```
+
+### Airflow Credentials
+
+Default credentials are `airflow` / `airflow`. To change:
+
+1. Set environment variables in docker-compose.yml:
+```yaml
+environment:
+  - _AIRFLOW_WWW_USER_USERNAME=your_username
+  - _AIRFLOW_WWW_USER_PASSWORD=your_password
+```
+
+2. Or use Airflow CLI:
+```bash
+docker compose exec airflow-webserver airflow users create \
+  --username admin \
+  --firstname Admin \
+  --lastname User \
+  --role Admin \
+  --email admin@example.com \
+  --password your_password
+```
+
+### Incremental Ingestion (Future Enhancement)
+
+To implement incremental ingestion (only fetch new papers):
+1. Track last ingestion timestamp in S3 or database
+2. Modify `run_ingestion_task` to filter papers by date
+3. Update DAG to pass last run timestamp to task

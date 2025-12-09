@@ -46,7 +46,7 @@ if "tasks" not in st.session_state:
 if "current_task_id" not in st.session_state:
     st.session_state.current_task_id = None
 if "auto_refresh" not in st.session_state:
-    st.session_state.auto_refresh = False
+    st.session_state.auto_refresh = True  # Default to enabled
 
 
 def check_api_health() -> bool:
@@ -212,19 +212,20 @@ def display_task_status(task_id: str):
     created_at = status_data.get("created_at")
     updated_at = status_data.get("updated_at")
     
-    # Status badge
-    status_colors = {
-        "queued": "🟡",
-        "processing": "🔵",
-        "completed": "🟢",
-        "failed": "🔴",
-        "pending_review": "🟠"
+    # Status badge with user-friendly labels
+    status_labels = {
+        "queued": ("🟡", "SUBMITTED"),
+        "processing": ("🔵", "PROCESSING"),
+        "completed": ("🟢", "COMPLETED"),
+        "failed": ("🔴", "FAILED"),
+        "pending_review": ("🟠", "PENDING")
     }
     
     col1, col2 = st.columns([1, 3])
     with col1:
-        status_emoji = status_colors.get(status, "⚪")
-        st.markdown(f"### {status_emoji} {status.upper()}")
+        status_info = status_labels.get(status, ("⚪", status.upper()))
+        status_emoji, status_label = status_info
+        st.markdown(f"### {status_emoji} {status_label}")
     with col2:
         if progress is not None:
             st.progress(progress / 100.0)
@@ -234,53 +235,6 @@ def display_task_status(task_id: str):
             if status == "processing":
                 st.progress(0.5)  # Indeterminate progress
                 st.caption("Processing...")
-    
-    # Workflow stage visualization
-    if status == "processing":
-        # Determine current stage based on progress and message
-        current_stage = "Initializing"
-        if progress:
-            if progress < 20:
-                current_stage = "Initializing"
-            elif progress < 40:
-                current_stage = "Search Agent"
-            elif progress < 60:
-                current_stage = "Synthesis Agent"
-            elif progress < 80:
-                current_stage = "Validation Agent"
-            else:
-                current_stage = "Finalizing"
-        elif message:
-            msg_lower = message.lower()
-            if "search" in msg_lower:
-                current_stage = "Search Agent"
-            elif "synthesis" in msg_lower or "report" in msg_lower:
-                current_stage = "Synthesis Agent"
-            elif "validation" in msg_lower or "validation" in msg_lower:
-                current_stage = "Validation Agent"
-            elif "hitl" in msg_lower or "review" in msg_lower:
-                current_stage = "HITL Review"
-        
-        # Workflow stages
-        stages = ["Search", "Synthesis", "Validation", "HITL Review"]
-        stage_index = 0
-        if "synthesis" in current_stage.lower():
-            stage_index = 1
-        elif "validation" in current_stage.lower():
-            stage_index = 2
-        elif "hitl" in current_stage.lower() or "review" in current_stage.lower():
-            stage_index = 3
-        
-        # Display workflow stages
-        cols = st.columns(len(stages))
-        for i, stage in enumerate(stages):
-            with cols[i]:
-                if i < stage_index:
-                    st.success(f"✅ {stage}")
-                elif i == stage_index:
-                    st.info(f"🔄 {stage}")
-                else:
-                    st.caption(f"⏳ {stage}")
     
     # Status details
     if message:
@@ -587,11 +541,11 @@ def display_task_details(task_id: str):
         st.info(f"Task is {status}. Report will appear here when processing is complete.")
         
         # Auto-refresh for processing tasks
-        if status in ["queued", "processing"]:
+        if status in ["queued", "processing", "pending_review"]:
             if st.session_state.auto_refresh:
                 # Refresh task status before rerun
                 refresh_task_status(task_id)
-                time.sleep(7)  # Refresh every 7 seconds for processing tasks
+                time.sleep(3)  # Refresh every 3 seconds
                 st.rerun()
             else:
                 # Show manual refresh hint
@@ -627,7 +581,7 @@ with st.sidebar:
     st.session_state.auto_refresh = st.checkbox("🔄 Auto-refresh", value=st.session_state.auto_refresh)
     
     if st.session_state.auto_refresh:
-        st.caption("Auto-refreshing every 7 seconds for active tasks")
+        st.caption("Auto-refreshing every 3 seconds for active tasks")
 
 
 # Helper function to refresh task status
@@ -701,25 +655,28 @@ if page == "🏠 Home":
                             "user_id": user_id
                         }
                         st.success(f"✅ Research task created! Task ID: `{task_id}`")
-                        st.info("Navigate to Task History to view progress and results.")
+                        st.rerun()  # Refresh to show task details immediately
     
-    # Current Task Status
+    # Current Task Status and Details - Show on Home page
     if st.session_state.current_task_id:
         st.markdown("---")
-        st.subheader("Current Task Status")
+        st.subheader("Current Task")
         # Refresh status before displaying
         refresh_task_status(st.session_state.current_task_id)
-        display_task_status(st.session_state.current_task_id)
+        
+        # Display full task details (moved from Task History)
+        display_task_details(st.session_state.current_task_id)
         
         # Auto-refresh if task is still processing
         task = st.session_state.tasks.get(st.session_state.current_task_id, {})
-        if task.get('status') in ['queued', 'processing'] and st.session_state.auto_refresh:
-            time.sleep(7)
+        if task.get('status') in ['queued', 'processing', 'pending_review'] and st.session_state.auto_refresh:
+            time.sleep(3)
             st.rerun()
 
 
 elif page == "📊 Task History":
-    st.title("Task History & Management")
+    st.title("Task History")
+    st.markdown("View completed research tasks")
     
     # Refresh button - more visible
     col1, col2, col3 = st.columns([8, 1, 1])
@@ -730,49 +687,40 @@ elif page == "📊 Task History":
                 refresh_task_status(task_id)
             st.rerun()
     
-    # Task Selection
+    # Task Selection - Only show completed tasks
     if st.session_state.tasks:
-        task_ids = list(st.session_state.tasks.keys())
-        
-        # Filter for pending review tasks
-        pending_tasks = []
-        for task_id in task_ids:
+        # Filter to only completed tasks
+        completed_task_ids = []
+        for task_id in st.session_state.tasks.keys():
             task = st.session_state.tasks.get(task_id, {})
-            if task.get('status') == 'pending_review':
-                pending_tasks.append(task_id)
-        
-        # Show pending review alert
-        if pending_tasks:
-            st.warning(f"⚠️ **{len(pending_tasks)} task(s) require your review**")
-        
-        def format_task_option(task_id):
-            """Format task option for dropdown with full text"""
+            # Refresh status to get latest
+            refresh_task_status(task_id)
             task = st.session_state.tasks.get(task_id, {})
-            query = task.get('query', 'Unknown')
-            status = task.get('status', 'unknown')
-            # Add indicator for pending review
-            prefix = "🟠 " if status == 'pending_review' else ""
-            # Show full query and task ID (Streamlit selectbox supports longer text)
-            # Format: Query first (more important), then task ID
-            return f"{prefix}{query} | ID: {task_id}"
+            if task.get('status') == 'completed':
+                completed_task_ids.append(task_id)
         
-        selected_task_id = st.selectbox(
-            "Select Task",
-            task_ids,
-            index=0 if st.session_state.current_task_id in task_ids else 0,
-            format_func=format_task_option
-        )
-        
-        if selected_task_id:
-            # Refresh task status before displaying
-            refresh_task_status(selected_task_id)
-            display_task_details(selected_task_id)
+        if completed_task_ids:
+            def format_task_option(task_id):
+                """Format task option for dropdown with full text"""
+                task = st.session_state.tasks.get(task_id, {})
+                query = task.get('query', 'Unknown')
+                created_at = task.get('created_at', '')
+                # Show full query and task ID
+                return f"{query} | ID: {task_id}"
             
-            # Auto-refresh if task is still processing
-            task = st.session_state.tasks.get(selected_task_id, {})
-            if task.get('status') in ['queued', 'processing'] and st.session_state.auto_refresh:
-                time.sleep(7)
-                st.rerun()
+            selected_task_id = st.selectbox(
+                "Select Completed Task",
+                completed_task_ids,
+                index=0 if completed_task_ids else None,
+                format_func=format_task_option
+            )
+            
+            if selected_task_id:
+                # Refresh task status before displaying
+                refresh_task_status(selected_task_id)
+                display_task_details(selected_task_id)
+        else:
+            st.info("No completed tasks yet. Completed tasks will appear here after processing finishes.")
     else:
         st.info("No tasks yet. Submit a research query from the Home page to get started.")
 
@@ -788,13 +736,13 @@ elif page == "💰 Cost Dashboard":
     
     # Auto-refresh indicator
     if st.session_state.auto_refresh:
-        st.info("🔄 Auto-refresh enabled (every 7 seconds)")
+        st.info("🔄 Auto-refresh enabled (every 3 seconds)")
     
     cost_data = load_cost_data()
     
     # Auto-refresh if enabled
     if st.session_state.auto_refresh:
-        time.sleep(7)
+        time.sleep(3)
         st.rerun()
     
     if cost_data:

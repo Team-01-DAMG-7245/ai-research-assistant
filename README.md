@@ -77,6 +77,10 @@ See [Quick Start](#quick-start) section below for detailed instructions.
     - ✅ Docker Compose setup for local development
     - ✅ Multi-container orchestration (API + Streamlit)
     - ✅ Production Docker configuration
+  - ✅ Apache Airflow integration
+    - ✅ Automated data ingestion pipeline scheduling
+    - ✅ DAG-based workflow orchestration
+    - ✅ Web UI for monitoring and management
 
 - 📋 **M5**: Cloud Deployment & Testing (In Progress)
   - ✅ Docker deployment setup
@@ -101,7 +105,7 @@ See [Quick Start](#quick-start) section below for detailed instructions.
 - **PDF Processing**: Text extraction and table extraction
 - **Vector Search**: Pinecone integration for semantic search
 - **AWS Integration**: S3 storage and processing pipeline
-- **Pipeline Orchestration**: Simple Python-based pipeline management
+- **Pipeline Orchestration**: Apache Airflow for automated scheduling and monitoring
 - **Multi-Agent RAG Workflow**: LangGraph-based research report generation
 - **Citation Validation**: Automated citation checking and quality assurance
 - **Human-in-the-Loop (HITL)**: Interactive review for low-confidence reports
@@ -170,7 +174,7 @@ Streamlit interface available at:
 ### 3b. Docker Deployment (Alternative)
 
 ```bash
-# Build and start services
+# Build and start services (includes Airflow)
 docker compose build
 
 # View logs
@@ -186,9 +190,11 @@ docker compose down
 # Access services
 # API: http://localhost:8000
 # Streamlit: http://localhost:8501
+# Airflow: http://localhost:8080 (username: airflow, password: airflow)
 ```
 
 See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
+See [AIRFLOW.md](AIRFLOW.md) for Airflow setup and usage.
 
 ### 4. API Usage
 
