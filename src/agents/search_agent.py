@@ -31,10 +31,12 @@ from .state import ResearchState
 try:
     import sys
     from pathlib import Path
+
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
     from src.api.task_manager import get_task_manager
     from src.api.models import TaskStatus
+
     TASK_MANAGER_AVAILABLE = True
 except ImportError:
     TASK_MANAGER_AVAILABLE = False
@@ -66,7 +68,9 @@ def _parse_search_queries(response_text: str) -> List[str]:
         start = response_text.find("{")
         end = response_text.rfind("}")
         if start == -1 or end == -1 or end <= start:
-            raise ValueError("LLM response is not valid JSON and could not be recovered")
+            raise ValueError(
+                "LLM response is not valid JSON and could not be recovered"
+            )
         data = json.loads(response_text[start : end + 1])
 
     if not isinstance(data, dict) or "queries" not in data:
@@ -84,7 +88,9 @@ def _parse_search_queries(response_text: str) -> List[str]:
     return cleaned
 
 
-def _deduplicate_and_rank(results_by_query: List[Tuple[str, List[Dict[str, Any]]]]) -> List[Dict[str, Any]]:
+def _deduplicate_and_rank(
+    results_by_query: List[Tuple[str, List[Dict[str, Any]]]]
+) -> List[Dict[str, Any]]:
     """
     Deduplicate search results across queries and rank by score.
 
@@ -150,11 +156,11 @@ def search_agent_node(state: ResearchState) -> ResearchState:
     """
     start_time = time.time()
     task_id = state.get("task_id", "unknown")
-    
+
     logger.info("=" * 70)
     logger.info("SEARCH AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
-    
+
     # Update task status to show search agent is running
     if TASK_MANAGER_AVAILABLE:
         try:
@@ -163,19 +169,23 @@ def search_agent_node(state: ResearchState) -> ResearchState:
                 task_id,
                 TaskStatus.PROCESSING,
                 progress=40.0,
-                message="Searching for relevant papers..."
+                message="Searching for relevant papers...",
             )
-            logger.info("Updated task status: Search agent running | task_id=%s", task_id)
+            logger.info(
+                "Updated task status: Search agent running | task_id=%s", task_id
+            )
         except Exception as e:
             logger.warning("Failed to update task status: %s", e)
-    
+
     new_state: ResearchState = dict(state)  # type: ignore[assignment]
     new_state["current_agent"] = "search_agent"
 
     user_query = state.get("user_query")  # type: ignore[assignment]
     if not user_query or not isinstance(user_query, str) or not user_query.strip():
         msg = "search_agent_node: 'user_query' is missing or empty in state"
-        log_error_with_context(logger, ValueError(msg), "search_agent_node", task_id=task_id)
+        log_error_with_context(
+            logger, ValueError(msg), "search_agent_node", task_id=task_id
+        )
         new_state["error"] = msg
         new_state.setdefault("search_queries", [])
         new_state.setdefault("search_results", [])
@@ -195,7 +205,9 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             }
         ]
 
-        logger.debug("Calling OpenAI API for query expansion | model=gpt-4o-mini | temperature=0.3")
+        logger.debug(
+            "Calling OpenAI API for query expansion | model=gpt-4o-mini | temperature=0.3"
+        )
         llm_response = client.chat_completion(
             messages=messages,
             model="gpt-4o-mini",
@@ -210,7 +222,7 @@ def search_agent_node(state: ResearchState) -> ResearchState:
         prompt_tokens = llm_response.get("prompt_tokens", 0)
         completion_tokens = llm_response.get("completion_tokens", 0)
         cost = llm_response.get("cost", 0.0)
-        
+
         log_api_call(
             logger,
             operation="query_expansion",
@@ -221,7 +233,7 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             cost=cost,
             task_id=task_id,
         )
-        
+
         logger.debug("Raw LLM response length: %d characters", len(raw_content))
 
         queries = _parse_search_queries(raw_content)
@@ -231,14 +243,16 @@ def search_agent_node(state: ResearchState) -> ResearchState:
         search_start_time = time.time()
         results_by_query: List[Tuple[str, List[Dict[str, Any]]]] = []
         total_results = 0
-        
+
         for idx, q in enumerate(queries, 1):
             try:
                 logger.debug("Semantic search %d/%d | query='%s'", idx, len(queries), q)
                 query_search_start = time.time()
-                results = semantic_search(q, top_k=10, namespace="research_papers", task_id=task_id)
+                results = semantic_search(
+                    q, top_k=10, namespace="research_papers", task_id=task_id
+                )
                 query_search_duration = time.time() - query_search_start
-                
+
                 logger.info(
                     "Semantic search completed | query='%s' | results=%d | duration=%.2fs",
                     q,
@@ -298,7 +312,9 @@ def search_agent_node(state: ResearchState) -> ResearchState:
                     result.get("origin_query", "N/A"),
                 )
         else:
-            logger.warning("No search results obtained for any query | task_id=%s", task_id)
+            logger.warning(
+                "No search results obtained for any query | task_id=%s", task_id
+            )
 
         # 4) Update state
         new_state["search_queries"] = queries
@@ -314,7 +330,7 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             queries_generated=len(queries),
             final_results=len(combined_results),
         )
-        
+
         log_state_transition(
             logger,
             from_state="entry",
@@ -323,8 +339,10 @@ def search_agent_node(state: ResearchState) -> ResearchState:
             queries=len(queries),
             results=len(combined_results),
         )
-        
-        logger.info("SEARCH AGENT - Exit | task_id=%s | duration=%.2fs", task_id, total_duration)
+
+        logger.info(
+            "SEARCH AGENT - Exit | task_id=%s | duration=%.2fs", task_id, total_duration
+        )
         logger.info("=" * 70)
 
         return new_state
@@ -346,5 +364,3 @@ def search_agent_node(state: ResearchState) -> ResearchState:
 
 
 __all__ = ["search_agent_node"]
-
-

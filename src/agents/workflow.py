@@ -13,9 +13,7 @@ from typing import Literal
 try:
     from langgraph.graph import StateGraph, END
 except ImportError:
-    raise ImportError(
-        "LangGraph is required. Install it with: pip install langgraph"
-    )
+    raise ImportError("LangGraph is required. Install it with: pip install langgraph")
 
 from ..utils.logger import get_workflow_logger, log_state_transition
 from .state import ResearchState
@@ -45,7 +43,10 @@ def set_final_report_node(state: ResearchState) -> ResearchState:
     report_draft = state.get("report_draft", "")
     if report_draft and not new_state.get("final_report"):
         new_state["final_report"] = report_draft
-        logger.info("Set final_report to report_draft (HITL review skipped) | task_id=%s", task_id)
+        logger.info(
+            "Set final_report to report_draft (HITL review skipped) | task_id=%s",
+            task_id,
+        )
         log_state_transition(
             logger,
             from_state="validation",
@@ -71,7 +72,9 @@ def handle_max_retries_node(state: ResearchState) -> ResearchState:
     task_id = state.get("task_id", "unknown")
     regeneration_count = state.get("regeneration_count", 0)
     new_state = dict(state)
-    new_state["error"] = f"Max regeneration attempts ({regeneration_count}) exceeded. Report could not be improved after multiple attempts."
+    new_state[
+        "error"
+    ] = f"Max regeneration attempts ({regeneration_count}) exceeded. Report could not be improved after multiple attempts."
     new_state["final_report"] = ""
     logger.error(
         "Max regenerations exceeded, ending workflow | task_id=%s | attempts=%d",
@@ -88,7 +91,9 @@ def handle_max_retries_node(state: ResearchState) -> ResearchState:
     return new_state
 
 
-def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_final_report"]:
+def route_after_validation(
+    state: ResearchState,
+) -> Literal["hitl_review", "set_final_report"]:
     """
     Conditional routing function after validation agent.
 
@@ -103,7 +108,7 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
     task_id = state.get("task_id", "unknown")
     needs_hitl = state.get("needs_hitl", False)
     confidence_score = state.get("confidence_score", 0.0)
-    
+
     if needs_hitl:
         logger.info(
             "Routing to HITL review | task_id=%s | confidence=%.2f | needs_hitl=True | reason=confidence_below_threshold",
@@ -134,7 +139,9 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
         return "set_final_report"
 
 
-def route_after_hitl(state: ResearchState) -> Literal["search", "set_final_report", "handle_max_retries"]:
+def route_after_hitl(
+    state: ResearchState,
+) -> Literal["search", "set_final_report", "handle_max_retries"]:
     """
     Conditional routing function after HITL review.
 
@@ -154,10 +161,12 @@ def route_after_hitl(state: ResearchState) -> Literal["search", "set_final_repor
     final_report = state.get("final_report", "")
     regeneration_count = state.get("regeneration_count", 0)
     MAX_REGENERATIONS = 2  # Maximum number of regeneration attempts
-    
+
     # Check if report was rejected
-    is_rejected = error and "rejected" in error.lower() and "regeneration" in error.lower()
-    
+    is_rejected = (
+        error and "rejected" in error.lower() and "regeneration" in error.lower()
+    )
+
     if is_rejected:
         # regeneration_count was already incremented in HITL node
         if regeneration_count <= MAX_REGENERATIONS:
@@ -263,7 +272,7 @@ def build_workflow() -> StateGraph:
     # Add edges
     workflow.add_edge("search", "synthesis")
     workflow.add_edge("synthesis", "validation")
-    
+
     # Conditional edge: validation → hitl_review or set_final_report
     workflow.add_conditional_edges(
         "validation",
@@ -273,7 +282,7 @@ def build_workflow() -> StateGraph:
             "set_final_report": "set_final_report",
         },
     )
-    
+
     # Conditional edge: hitl_review → search (regenerate) or set_final_report or END
     workflow.add_conditional_edges(
         "hitl_review",
@@ -285,7 +294,7 @@ def build_workflow() -> StateGraph:
             "end": END,  # Pending review: end workflow, wait for API
         },
     )
-    
+
     # set_final_report and handle_max_retries go to END
     workflow.add_edge("set_final_report", END)
     workflow.add_edge("handle_max_retries", END)
@@ -319,4 +328,3 @@ __all__ = [
     "route_after_hitl",
     "set_final_report_node",
 ]
-

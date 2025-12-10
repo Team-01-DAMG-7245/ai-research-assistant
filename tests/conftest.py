@@ -31,4 +31,3 @@ if not os.getenv("PINECONE_INDEX_NAME"):
     os.environ["PINECONE_INDEX_NAME"] = "test-index"
 if not os.getenv("S3_BUCKET_NAME"):
     os.environ["S3_BUCKET_NAME"] = "test-bucket"
-

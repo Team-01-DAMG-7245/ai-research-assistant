@@ -35,10 +35,12 @@ from .state import ResearchState
 try:
     import sys
     from pathlib import Path
+
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
     from src.api.task_manager import get_task_manager
     from src.api.models import TaskStatus
+
     TASK_MANAGER_AVAILABLE = True
 except ImportError:
     TASK_MANAGER_AVAILABLE = False
@@ -138,11 +140,11 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
     """
     start_time = time.time()
     task_id = state.get("task_id", "unknown")
-    
+
     logger.info("=" * 70)
     logger.info("SYNTHESIS AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
-    
+
     # Update task status to show synthesis agent is running
     if TASK_MANAGER_AVAILABLE:
         try:
@@ -151,12 +153,14 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                 task_id,
                 TaskStatus.PROCESSING,
                 progress=60.0,
-                message="Synthesizing research report..."
+                message="Synthesizing research report...",
             )
-            logger.info("Updated task status: Synthesis agent running | task_id=%s", task_id)
+            logger.info(
+                "Updated task status: Synthesis agent running | task_id=%s", task_id
+            )
         except Exception as e:
             logger.warning("Failed to update task status: %s", e)
-    
+
     new_state = dict(state)
     new_state["current_agent"] = "synthesis"
 
@@ -164,7 +168,9 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
         user_query = state.get("user_query", "")
         if not user_query:
             error_msg = "user_query is required in state for synthesis agent"
-            log_error_with_context(logger, ValueError(error_msg), "synthesis_agent_node", task_id=task_id)
+            log_error_with_context(
+                logger, ValueError(error_msg), "synthesis_agent_node", task_id=task_id
+            )
             new_state["error"] = error_msg
             return new_state
 
@@ -213,12 +219,14 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                     len(chunk_ids),
                     len(pinecone_chunks),
                 )
-            
+
             # Merge URL and other metadata from Pinecone results into retrieved chunks
             # Create a lookup map from chunk_id to Pinecone result
-            pinecone_result_map = {result.get("chunk_id") or result.get("id", ""): result 
-                                  for result in pinecone_results}
-            
+            pinecone_result_map = {
+                result.get("chunk_id") or result.get("id", ""): result
+                for result in pinecone_results
+            }
+
             for chunk in pinecone_chunks:
                 chunk_id = chunk.get("chunk_id") or chunk.get("doc_id", "")
                 if chunk_id in pinecone_result_map:
@@ -236,7 +244,9 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                     if "score" not in chunk:
                         chunk["score"] = result.get("score", 0.0)
         except Exception as exc:
-            log_error_with_context(logger, exc, "s3_retrieval", task_id=task_id, chunk_count=len(chunk_ids))
+            log_error_with_context(
+                logger, exc, "s3_retrieval", task_id=task_id, chunk_count=len(chunk_ids)
+            )
             pinecone_chunks = []
 
         # 3) Combine Pinecone chunks with search_results from Search Agent
@@ -266,9 +276,9 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                 "Only %d sources available for synthesis (recommended minimum: %d) | task_id=%s",
                 len(all_sources),
                 min_sources,
-                task_id
+                task_id,
             )
-        
+
         # Limit to ~20-30 sources as specified
         max_sources = 30
         if len(all_sources) > max_sources:
@@ -294,18 +304,19 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
 
         # 5) Call GPT-4o Mini with SYNTHESIS_AGENT_PROMPT
         synthesis_start_time = time.time()
-        logger.info("Calling OpenAI API for report generation | model=gpt-4o-mini | temperature=0.3")
+        logger.info(
+            "Calling OpenAI API for report generation | model=gpt-4o-mini | temperature=0.3"
+        )
         openai_client = OpenAIClient()
 
         # Use prepare_context() output directly in the prompt
         user_prompt = SYNTHESIS_AGENT_USER_PROMPT.format(
-            topic=user_query,
-            sources=context_text
+            topic=user_query, sources=context_text
         )
 
         messages = [
             {"role": "system", "content": SYNTHESIS_AGENT_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
 
         try:
@@ -360,7 +371,7 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
         new_state["retrieved_chunks"] = all_sources
         new_state["source_count"] = len(all_sources)
         new_state["error"] = None
-        
+
         # Update task status after synthesis completes
         if TASK_MANAGER_AVAILABLE:
             try:
@@ -369,9 +380,11 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
                     task_id,
                     TaskStatus.PROCESSING,
                     progress=70.0,
-                    message="Synthesis complete. Validating report..."
+                    message="Synthesis complete. Validating report...",
                 )
-                logger.info("Updated task status: Synthesis complete | task_id=%s", task_id)
+                logger.info(
+                    "Updated task status: Synthesis complete | task_id=%s", task_id
+                )
             except Exception as e:
                 logger.warning("Failed to update task status after synthesis: %s", e)
 
@@ -387,7 +400,7 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
             s3_duration=s3_duration,
             synthesis_duration=synthesis_duration,
         )
-        
+
         log_state_transition(
             logger,
             from_state="search_agent",
@@ -396,8 +409,12 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
             sources=len(all_sources),
             word_count=word_count,
         )
-        
-        logger.info("SYNTHESIS AGENT - Exit | task_id=%s | duration=%.2fs", task_id, total_duration)
+
+        logger.info(
+            "SYNTHESIS AGENT - Exit | task_id=%s | duration=%.2fs",
+            task_id,
+            total_duration,
+        )
         logger.info("=" * 70)
 
         return new_state
@@ -420,4 +437,3 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
 
 
 __all__ = ["synthesis_agent_node"]
-

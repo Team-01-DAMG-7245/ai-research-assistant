@@ -47,7 +47,9 @@ def _get_pinecone_index() -> Any:
         logger.info("Initialized Pinecone index '%s'", index_name)
         return index
     except Exception as exc:
-        logger.exception("Failed to initialize Pinecone index '%s': %s", index_name, exc)
+        logger.exception(
+            "Failed to initialize Pinecone index '%s': %s", index_name, exc
+        )
         raise
 
 
@@ -96,10 +98,10 @@ def query_to_embedding(query: str, task_id: Optional[str] = None) -> List[float]
 
 
 def semantic_search(
-    query: str, 
-    top_k: int = 10, 
+    query: str,
+    top_k: int = 10,
     namespace: str = "research_papers",
-    task_id: Optional[str] = None
+    task_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Perform a semantic search in Pinecone for the given query.
@@ -227,7 +229,7 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
     # We will stream objects directly from S3 without persisting to disk
     s3 = s3_client.s3  # reuse underlying boto3 client
     results: List[Dict[str, Any]] = []
-    
+
     # Group chunk_ids by arxiv_id to minimize S3 requests
     chunks_by_arxiv: Dict[str, List[str]] = {}
     for chunk_id in chunk_ids:
@@ -237,7 +239,9 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
         chunks_by_arxiv[arxiv_id].append(chunk_id)
 
     for arxiv_id, chunk_id_list in chunks_by_arxiv.items():
-        s3_key = _chunk_s3_key_from_id(chunk_id_list[0])  # All chunks from same arxiv_id use same file
+        s3_key = _chunk_s3_key_from_id(
+            chunk_id_list[0]
+        )  # All chunks from same arxiv_id use same file
         try:
             obj = s3.get_object(Bucket=bucket, Key=s3_key)
             body = obj["Body"].read()
@@ -256,9 +260,11 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
             for chunk_id in chunk_id_list:
                 try:
                     # Extract chunk index from chunk_id (format: arxiv_id-{index})
-                    chunk_index_str = chunk_id.split("-", 1)[1] if "-" in chunk_id else "0"
+                    chunk_index_str = (
+                        chunk_id.split("-", 1)[1] if "-" in chunk_id else "0"
+                    )
                     chunk_index = int(chunk_index_str)
-                    
+
                     if 0 <= chunk_index < len(chunks_array):
                         chunk_data = chunks_array[chunk_index]
                         # Handle both string and dict chunks
@@ -270,11 +276,19 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
                         else:
                             data = {"chunk_id": chunk_id, "text": str(chunk_data)}
                     else:
-                        logger.warning("Chunk index %d out of range for %s (has %d chunks)", 
-                                     chunk_index, s3_key, len(chunks_array))
+                        logger.warning(
+                            "Chunk index %d out of range for %s (has %d chunks)",
+                            chunk_index,
+                            s3_key,
+                            len(chunks_array),
+                        )
                         continue
                 except (ValueError, IndexError) as e:
-                    logger.warning("Failed to parse chunk index from chunk_id '%s': %s", chunk_id, e)
+                    logger.warning(
+                        "Failed to parse chunk index from chunk_id '%s': %s",
+                        chunk_id,
+                        e,
+                    )
                     continue
 
                 # Ensure minimal fields are present
@@ -283,10 +297,12 @@ def retrieve_full_chunks(chunk_ids: List[str]) -> List[Dict[str, Any]]:
                     data["doc_id"] = file_arxiv_id
                 if "text" not in data and "content" in data:
                     data["text"] = data["content"]
-                
+
                 # Construct URL from arxiv_id if not present
                 if "url" not in data or not data.get("url"):
-                    doc_id = data.get("doc_id") or file_arxiv_id or chunk_id.split("-")[0]
+                    doc_id = (
+                        data.get("doc_id") or file_arxiv_id or chunk_id.split("-")[0]
+                    )
                     if doc_id:
                         # Construct arXiv PDF URL: https://arxiv.org/pdf/{arxiv_id}.pdf
                         data["url"] = f"https://arxiv.org/pdf/{doc_id}.pdf"
@@ -341,7 +357,9 @@ def prepare_context(chunks: List[Dict[str, Any]]) -> str:
         lines.append("")  # blank line between sources
 
     context = "\n".join(lines).strip()
-    logger.debug("Prepared context with %d sources, length=%d chars", len(chunks), len(context))
+    logger.debug(
+        "Prepared context with %d sources, length=%d chars", len(chunks), len(context)
+    )
     return context
 
 
@@ -351,5 +369,3 @@ __all__ = [
     "retrieve_full_chunks",
     "prepare_context",
 ]
-
-

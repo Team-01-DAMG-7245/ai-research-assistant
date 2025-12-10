@@ -21,7 +21,9 @@ _LOGS_DIR = Path(__file__).parent.parent / "logs"
 _LOGS_DIR.mkdir(exist_ok=True)
 
 # Default log format
-_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+_LOG_FORMAT = (
+    "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+)
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Log rotation settings
@@ -50,32 +52,32 @@ def get_logger(
         Configured logger instance.
     """
     logger = logging.getLogger(name)
-    
+
     # Avoid adding handlers multiple times
     if logger.handlers:
         return logger
-    
+
     logger.setLevel(level)
-    
+
     # Create formatter
     formatter = logging.Formatter(_LOG_FORMAT, datefmt=_DATE_FORMAT)
-    
+
     # Console handler
     if console:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
-    
+
     # File handler with rotation
     if file:
         if log_file is None:
             # Extract log file name from logger name
             # e.g., "src.agents.search_agent" -> "search_agent"
             log_file = name.split(".")[-1]
-        
+
         log_path = _LOGS_DIR / f"{log_file}.log"
-        
+
         file_handler = RotatingFileHandler(
             log_path,
             maxBytes=_MAX_BYTES,
@@ -85,7 +87,7 @@ def get_logger(
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-    
+
     return logger
 
 
@@ -98,10 +100,10 @@ def setup_root_logger(level: int = logging.INFO) -> None:
     """
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
-    
+
     # Remove existing handlers to avoid duplicates
     root_logger.handlers.clear()
-    
+
     # Add console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
@@ -150,6 +152,7 @@ def log_function_entry_exit(logger: logging.Logger):
         def my_function():
             pass
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             logger.debug(f"Entering {func.__name__}")
@@ -160,7 +163,9 @@ def log_function_entry_exit(logger: logging.Logger):
             except Exception as e:
                 logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
                 raise
+
         return wrapper
+
     return decorator
 
 
@@ -169,7 +174,7 @@ def log_state_transition(
     from_state: str,
     to_state: str,
     task_id: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> None:
     """
     Log a state transition with optional context.
@@ -184,7 +189,7 @@ def log_state_transition(
     context = f" | task_id={task_id}" if task_id else ""
     for key, value in kwargs.items():
         context += f" | {key}={value}"
-    
+
     logger.info(f"State transition: {from_state} -> {to_state}{context}")
 
 
@@ -197,7 +202,7 @@ def log_api_call(
     duration: float = 0.0,
     cost: float = 0.0,
     task_id: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> None:
     """
     Log an API call with structured information.
@@ -216,7 +221,7 @@ def log_api_call(
     context = f" | task_id={task_id}" if task_id else ""
     for key, value in kwargs.items():
         context += f" | {key}={value}"
-    
+
     total_tokens = prompt_tokens + completion_tokens
     logger.info(
         f"API Call | operation={operation} | model={model} | "
@@ -230,7 +235,7 @@ def log_performance_metrics(
     operation: str,
     duration: float,
     task_id: Optional[str] = None,
-    **metrics
+    **metrics,
 ) -> None:
     """
     Log performance metrics for an operation.
@@ -245,8 +250,10 @@ def log_performance_metrics(
     context = f" | task_id={task_id}" if task_id else ""
     for key, value in metrics.items():
         context += f" | {key}={value}"
-    
-    logger.info(f"Performance | operation={operation} | duration={duration:.2f}s{context}")
+
+    logger.info(
+        f"Performance | operation={operation} | duration={duration:.2f}s{context}"
+    )
 
 
 def log_error_with_context(
@@ -254,7 +261,7 @@ def log_error_with_context(
     error: Exception,
     operation: str,
     task_id: Optional[str] = None,
-    **context
+    **context,
 ) -> None:
     """
     Log an error with full context and stack trace.
@@ -269,10 +276,10 @@ def log_error_with_context(
     ctx_str = f" | task_id={task_id}" if task_id else ""
     for key, value in context.items():
         ctx_str += f" | {key}={value}"
-    
+
     logger.error(
         f"Error in {operation} | {type(error).__name__}: {str(error)}{ctx_str}",
-        exc_info=True
+        exc_info=True,
     )
 
 
@@ -290,4 +297,3 @@ __all__ = [
     "log_performance_metrics",
     "log_error_with_context",
 ]
-

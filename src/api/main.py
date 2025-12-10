@@ -10,15 +10,14 @@ from fastapi.responses import JSONResponse
 from .middleware import (
     setup_cors_middleware,
     setup_rate_limit_middleware,
-    setup_error_handler_middleware
+    setup_error_handler_middleware,
 )
 from .endpoints import research, status, report, review
 from .task_manager import get_task_manager
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ app = FastAPI(
     description="API for AI-powered research report generation",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Setup middleware
@@ -50,17 +49,14 @@ async def root():
         "name": "AI Research Assistant API",
         "version": "1.0.0",
         "status": "running",
-        "docs": "/docs"
+        "docs": "/docs",
     }
 
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "ai-research-assistant-api"
-    }
+    return {"status": "healthy", "service": "ai-research-assistant-api"}
 
 
 @app.get("/api/v1/health")
@@ -69,9 +65,9 @@ async def detailed_health_check():
     health_status = {
         "status": "healthy",
         "service": "ai-research-assistant-api",
-        "checks": {}
+        "checks": {},
     }
-    
+
     # Check database
     try:
         task_manager = get_task_manager()
@@ -81,7 +77,7 @@ async def detailed_health_check():
     except Exception as e:
         health_status["checks"]["database"] = f"error: {str(e)}"
         health_status["status"] = "degraded"
-    
+
     # Check environment variables
     required_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY", "S3_BUCKET_NAME"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
@@ -90,7 +86,7 @@ async def detailed_health_check():
         health_status["status"] = "degraded"
     else:
         health_status["checks"]["environment"] = "ok"
-    
+
     return health_status
 
 
@@ -98,34 +94,29 @@ async def detailed_health_check():
 async def debug_task(task_id: str):
     """
     Debug endpoint to get detailed task information
-    
+
     Useful for troubleshooting and development
     """
     import uuid
+
     try:
         uuid.UUID(task_id)
     except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid task_id format"
-        )
-    
+        raise HTTPException(status_code=400, detail="Invalid task_id format")
+
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Task {task_id} not found"
-        )
-    
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
     return {
         "task": task,
-        "raw_status": task.get('status'),
-        "parsed_status": task.get('status'),
-        "has_report": bool(task.get('report')),
-        "num_sources": len(task.get('sources', [])),
-        "needs_hitl": task.get('needs_hitl', False)
+        "raw_status": task.get("status"),
+        "parsed_status": task.get("status"),
+        "has_report": bool(task.get("report")),
+        "num_sources": len(task.get("sources", [])),
+        "needs_hitl": task.get("needs_hitl", False),
     }
 
 
@@ -134,11 +125,11 @@ async def debug_task(task_id: str):
 async def startup_event():
     """Initialize services on startup"""
     logger.info("Starting AI Research Assistant API...")
-    
+
     # Initialize task manager
     task_manager = get_task_manager()
     logger.info("Task manager initialized")
-    
+
     logger.info("API startup complete")
 
 
@@ -151,13 +142,13 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", 8000))
-    
+
     uvicorn.run(
         "src.api.main:app",
         host=host,
         port=port,
-        reload=os.getenv("DEBUG", "false").lower() == "true"
+        reload=os.getenv("DEBUG", "false").lower() == "true",
     )
