@@ -9,8 +9,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from .endpoints import report, research, review, status
-from .middleware import (setup_cors_middleware, setup_error_handler_middleware,
-                         setup_rate_limit_middleware)
+from .middleware import (
+    setup_cors_middleware,
+    setup_error_handler_middleware,
+    setup_rate_limit_middleware,
+)
 from .task_manager import get_task_manager
 
 # Setup logging

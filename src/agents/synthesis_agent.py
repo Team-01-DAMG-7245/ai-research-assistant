@@ -15,12 +15,15 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Set
 
-from ..utils.logger import (get_agent_logger, log_api_call,
-                            log_error_with_context, log_performance_metrics,
-                            log_state_transition)
+from ..utils.logger import (
+    get_agent_logger,
+    log_api_call,
+    log_error_with_context,
+    log_performance_metrics,
+    log_state_transition,
+)
 from ..utils.openai_client import OpenAIClient
-from ..utils.pinecone_rag import (prepare_context, retrieve_full_chunks,
-                                  semantic_search)
+from ..utils.pinecone_rag import prepare_context, retrieve_full_chunks, semantic_search
 from .prompts import SYNTHESIS_AGENT_SYSTEM_PROMPT, SYNTHESIS_AGENT_USER_PROMPT
 from .state import ResearchState
 

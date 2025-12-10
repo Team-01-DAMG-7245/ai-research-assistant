@@ -9,8 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from ..models import (ErrorResponse, ResearchRequest, ResearchResponse,
-                      TaskStatus)
+from ..models import ErrorResponse, ResearchRequest, ResearchResponse, TaskStatus
 from ..task_manager import get_task_manager
 from ..workflow_executor import get_workflow_executor
 

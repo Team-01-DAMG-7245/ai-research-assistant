@@ -13,8 +13,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import tiktoken
 from dotenv import load_dotenv
-from openai import (APIConnectionError, APIError, APITimeoutError, OpenAI,
-                    RateLimitError)
+from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLimitError
 
 # Import cost tracker
 try:
