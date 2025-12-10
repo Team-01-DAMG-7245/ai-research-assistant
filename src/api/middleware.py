@@ -21,7 +21,6 @@ _rate_limit_buckets: dict = defaultdict(lambda: {"count": 0, "reset_time": 0})
 
 def reset_all_rate_limit_buckets():
     """Reset all rate limit buckets (for testing)"""
-    global _rate_limit_buckets
     _rate_limit_buckets.clear()
 
 

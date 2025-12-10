@@ -15,6 +15,12 @@ import tiktoken
 from dotenv import load_dotenv
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLimitError
 
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import cost tracker
 try:
     from .cost_tracker import get_cost_tracker
@@ -23,12 +29,6 @@ try:
 except ImportError:
     _COST_TRACKER_AVAILABLE = False
     logger.warning("Cost tracker not available")
-
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @dataclass
