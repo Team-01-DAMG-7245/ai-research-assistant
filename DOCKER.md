@@ -17,17 +17,17 @@ This guide explains how to dockerize and deploy the AI Research Assistant on EC2
 
 All services are built together, but you can selectively start only what you need.
 
-**Build Everything (including Airflow):**
+**Build Services:**
 ```bash
 docker compose build
 ```
 
-**Start Only API + Streamlit (EC2/Production):**
+**Start API + Streamlit:**
 ```bash
 docker compose up -d api streamlit
 ```
 
-**Start Everything (including Airflow):**
+**Start All Services:**
 ```bash
 docker compose up -d
 ```
@@ -40,7 +40,7 @@ docker compose build
 # Start only API and Streamlit (recommended for EC2)
 docker compose up -d api streamlit
 
-# Start everything including Airflow
+# Start all services
 docker compose up -d
 
 # View logs for API and Streamlit
@@ -55,31 +55,17 @@ docker compose down
 
 ### 2. Production Deployment
 
-**EC2 / Production (API + Streamlit only):**
+**EC2 / Production (API + Streamlit):**
 ```bash
-# Build all services (including Airflow images for future use)
+# Build services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
-# Start only API and Streamlit in production mode
+# Start API and Streamlit in production mode
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api streamlit
 
 # View logs
 docker compose logs -f api streamlit
 ```
-
-**With Airflow (all services):**
-```bash
-# Build all services for production
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build
-
-# Start everything including Airflow
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose logs -f
-```
-
-**Note:** Building with `docker compose build` creates all images (including Airflow), but you can selectively start only the services you need. This is perfect for EC2 where you want all images built but only run API and Streamlit to save resources.
 
 ## Services
 
@@ -95,20 +81,6 @@ docker compose logs -f
 - Cost dashboard
 - Health check: `http://localhost:8501/_stcore/health`
 
-### Airflow Services
-- **Airflow Webserver** (Port 8080): Web UI for monitoring and managing DAGs
-  - Access at: `http://localhost:8080`
-  - Default credentials: `airflow` / `airflow`
-- **Airflow Scheduler**: Executes scheduled DAGs
-- **Airflow Postgres**: Metadata database for Airflow
-- **Airflow Init**: Initialization container (runs once)
-
-The Airflow setup orchestrates the data ingestion pipeline:
-1. **ingest_arxiv_papers**: Fetches papers from arXiv and uploads to S3
-2. **process_pdfs**: Processes PDFs into text chunks
-3. **generate_embeddings**: Creates embeddings and uploads to Pinecone
-
-Default schedule: Daily at 2 AM UTC (configurable in DAG)
 
 ## Environment Variables
 
@@ -183,7 +155,7 @@ nano .env  # Edit with your API keys
 
 ### 4. Build and Deploy
 
-**Without Airflow (API + Streamlit only):**
+**EC2 / Production (API + Streamlit):**
 ```bash
 # Build images
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
@@ -196,25 +168,11 @@ docker compose ps
 docker compose logs -f
 ```
 
-**With Airflow (all services):**
-```bash
-# Build images (all services)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow build
-
-# Start services (all services)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d
-
-# Check status
-docker compose ps
-docker compose logs -f
-```
-
 ### 5. Configure Security Groups
 
 In AWS Console, configure EC2 Security Group to allow:
 - Port 8000 (API) - from your IP or load balancer
 - Port 8501 (Streamlit) - from your IP or load balancer
-- Port 8080 (Airflow) - from your IP only (recommended: restrict access)
 - Port 22 (SSH) - from your IP only
 
 ### 6. Set Up Reverse Proxy (Optional but Recommended)
@@ -274,29 +232,6 @@ docker compose logs -f
 # Specific service
 docker compose logs -f api
 docker compose logs -f streamlit
-docker compose logs -f airflow-webserver
-docker compose logs -f airflow-scheduler
-```
-
-### Airflow Management
-
-```bash
-# Access Airflow Web UI
-# Open browser: http://localhost:8080
-# Login: airflow / airflow
-
-# View DAGs
-docker compose exec airflow-webserver airflow dags list
-
-# Trigger a DAG manually
-docker compose exec airflow-webserver airflow dags trigger arxiv_daily_ingestion
-
-# Pause/Unpause a DAG
-docker compose exec airflow-webserver airflow dags pause arxiv_daily_ingestion
-docker compose exec airflow-webserver airflow dags unpause arxiv_daily_ingestion
-
-# View task logs
-docker compose exec airflow-webserver airflow tasks logs arxiv_daily_ingestion ingest_arxiv_papers
 ```
 
 ### Restart Services
@@ -311,22 +246,12 @@ docker compose restart api
 
 ### Update Application
 
-**Without Airflow:**
 ```bash
 # Pull latest code
 git pull
 
 # Rebuild and restart
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
-
-**With Airflow:**
-```bash
-# Pull latest code
-git pull
-
-# Rebuild and restart (all services)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile airflow up -d --build
 ```
 
 ### Backup Data
@@ -414,65 +339,3 @@ For high traffic, consider:
 - Use CloudWatch for monitoring
 - Set up auto-scaling if needed
 
-## Airflow Configuration
-
-### Changing DAG Schedule
-
-Edit `dags/arxiv_ingestion_dag.py` to modify the schedule:
-
-```python
-dag = DAG(
-    'arxiv_daily_ingestion',
-    schedule_interval='0 2 * * *',  # Daily at 2 AM UTC
-    # Options:
-    # '0 2 * * *' - Daily at 2 AM
-    # '0 2 * * 0' - Weekly on Sunday at 2 AM
-    # '@daily' - Once per day
-    # '@weekly' - Once per week
-    # None - Manual trigger only
-)
-```
-
-### Adjusting Paper Count
-
-Modify the `max_papers` parameter in the DAG:
-
-```python
-ingest_papers = PythonOperator(
-    task_id='ingest_arxiv_papers',
-    python_callable=run_ingestion_task,
-    op_kwargs={
-        'max_papers': 100,  # Change this value
-        'categories': ['cs.AI', 'cs.LG', 'cs.CL'],
-    },
-)
-```
-
-### Airflow Credentials
-
-Default credentials are `airflow` / `airflow`. To change:
-
-1. Set environment variables in docker-compose.yml:
-```yaml
-environment:
-  - _AIRFLOW_WWW_USER_USERNAME=your_username
-  - _AIRFLOW_WWW_USER_PASSWORD=your_password
-```
-
-2. Or use Airflow CLI:
-```bash
-docker compose exec airflow-webserver airflow users create \
-  --username admin \
-  --firstname Admin \
-  --lastname User \
-  --role Admin \
-  --email admin@example.com \
-  --password your_password
-```
-
-### Incremental Ingestion (Future Enhancement)
-
-To implement incremental ingestion (only fetch new papers):
-1. Track last ingestion timestamp in S3 or database
-2. Modify `run_ingestion_task` to filter papers by date
-3. Update DAG to pass last run timestamp to task
