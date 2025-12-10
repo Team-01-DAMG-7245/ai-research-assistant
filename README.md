@@ -1,12 +1,42 @@
 # AI Research Assistant
 
-AI-powered research assistant for ingesting and processing arXiv papers with vector search capabilities.
+An AI-powered research assistant that automates the process of discovering, analyzing, and synthesizing research papers from arXiv. Built with multi-agent workflows, vector search, and RAG (Retrieval-Augmented Generation) capabilities.
+
+## Key Capabilities
+
+- 🔍 **Semantic Search**: Find relevant papers using Pinecone vector database
+- 🤖 **Multi-Agent Workflow**: Automated research synthesis using LangGraph agents
+- 📊 **Citation Validation**: Automatic verification of citations and confidence scoring
+- 👤 **Human-in-the-Loop**: Interactive review for quality assurance
+- 📄 **Report Generation**: Generate comprehensive research reports in PDF, Markdown, or JSON
+- 💰 **Cost Tracking**: Monitor API usage and costs in real-time
+
+---
+
+## Table of Contents
+
+- [Quick Command Reference](#quick-command-reference)
+- [Milestones](#milestones)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Multi-Agent Workflow](#multi-agent-workflow)
+- [Performance Metrics](#performance-metrics)
+- [Architecture Overview](#architecture-overview)
+- [API Reference](#api-reference)
+- [Production Deployment](#production-deployment)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+
+---
 
 ## Quick Command Reference
 
 ```bash
 # Setup
-python -m venv venv && venv\Scripts\activate  # Windows
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 
 # Start API Server
@@ -78,22 +108,56 @@ See [Quick Start](#quick-start) section below for detailed instructions.
     - ✅ Multi-container orchestration (API + Streamlit)
     - ✅ Production Docker configuration
 
-- 📋 **M5**: Cloud Deployment & Testing (In Progress)
-  - ✅ Docker deployment setup
-  - 📋 Deploy FastAPI and Streamlit on AWS EC2
-  - 📋 Configure production environment and environment variables
-  - 📋 Write unit tests for core functions (chunking, citation extraction, validation)
-  - 📋 Implement integration tests for complete workflow
-  - 📋 Set up GitHub Actions CI/CD pipeline
-  - 📋 Test with 10-15 sample queries across different topics
+- ✅ **M5**: Cloud Deployment & Testing (Mostly Complete)
+  - ✅ Docker deployment setup and configuration
+  - ✅ Comprehensive deployment documentation
+    - ✅ EC2 deployment guide (EC2_DEPLOYMENT.md)
+    - ✅ Docker deployment guide (DOCKER.md)
+  - ✅ Production Docker configuration (docker-compose.prod.yml)
+  - ✅ Unit tests for core functions
+    - ✅ PDF processing and text extraction (test_m1.py, test_m2.py)
+    - ✅ Citation extraction and validation (test_agents.py)
+    - ✅ API endpoints and middleware (test_api.py)
+    - ✅ OpenAI client and cost tracking (test_openai_client.py)
+  - ✅ Integration tests for complete workflow
+    - ✅ Full workflow integration tests (test_api.py)
+    - ✅ Agent workflow testing (test_agents.py)
+  - ✅ Set up GitHub Actions CI/CD pipeline (`.github/workflows/ci.yml`)
+  - ✅ Production deployment validation script (`scripts/validate_production_deployment.py`)
+  - ✅ Extensive query testing script (`scripts/test_queries.py`)
+  
+  **To Complete M5:**
+  
+  1. **GitHub Actions CI/CD**: 
+     - Workflow file is ready at `.github/workflows/ci.yml`
+     - Push to GitHub to trigger the pipeline automatically
+     - Configure GitHub repository secrets if needed (API keys for integration tests)
+  
+  2. **Production Validation**: 
+     ```bash
+     # On your EC2 instance or from a machine that can access it
+     python scripts/validate_production_deployment.py --api-url http://YOUR-EC2-IP:8000 --streamlit-url http://YOUR-EC2-IP:8501
+     ```
+  
+  3. **Query Testing**: 
+     ```bash
+     # Test with all 15 sample queries (submit only)
+     python scripts/test_queries.py --api-url http://localhost:8000
+     
+     # Test and wait for completion (takes longer)
+     python scripts/test_queries.py --api-url http://localhost:8000 --wait
+     
+     # Test with fewer queries
+     python scripts/test_queries.py --api-url http://localhost:8000 --num-queries 5
+     ```
 
-- 📋 **M6**: Final Polish & Documentation (Planned)
-  - Comprehensive testing and bug fixes
-  - Optimize performance and token usage
-  - Create user documentation and README
-  - Prepare demo video showcasing key features
-  - Write final project report
-  - Presentation preparation and rehearsal
+- 📋 **M6**: Final Polish & Documentation (In Progress)
+  - ✅ Comprehensive testing and bug fixes
+  - ✅ Optimize performance and token usage
+  - ✅ Create user documentation and README
+  - 📋 Prepare demo video showcasing key features
+  - 📋 Write final project report
+  - 📋 Presentation preparation and rehearsal
 
 ## Features
 
@@ -113,7 +177,10 @@ See [Quick Start](#quick-start) section below for detailed instructions.
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac: venv\Scripts\activate (Windows)
+
+# Activate virtual environment
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
 
 # Install dependencies
 pip install -r requirements.txt
@@ -168,14 +235,13 @@ Streamlit interface available at:
 
 ### 3b. Docker Deployment (Alternative)
 
-**Using Docker Compose Profiles:**
+**Simple Commands:**
 
-The project uses Docker Compose profiles to selectively start services:
-
-**Default (API + Streamlit):**
 ```bash
-# Build and start API and Streamlit
+# Build services
 docker compose build
+
+# Start API and Streamlit
 docker compose up -d
 
 # View logs
@@ -189,11 +255,7 @@ docker compose down
 - API: http://localhost:8000
 - Streamlit: http://localhost:8501
 
-**Quick Reference:**
-- `docker compose up` - Starts API and Streamlit
-- `docker compose build` - Builds API and Streamlit images
-
-See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
+See [DOCKER.md](DOCKER.md) for detailed Docker instructions and production deployment.
 
 ### 4. API Usage
 
@@ -235,6 +297,10 @@ python test_synthesis_agent.py                 # Synthesis agent
 python test_validation_agent.py                # Validation agent
 python test_hitl_review.py                     # Full pipeline test
 python scripts/run_research_workflow.py        # Command-line workflow
+
+# Production validation and query testing
+python scripts/validate_production_deployment.py --api-url http://localhost:8000
+python scripts/test_queries.py --api-url http://localhost:8000 --num-queries 5
 ```
 
 ### 6. Additional Commands
@@ -254,10 +320,22 @@ rm data/tasks.db  # Will be recreated on next API start
 
 ## Project Structure
 
-- `src/` - Core application code (pipelines, agents, utils, API)
-- `scripts/` - Utility scripts for ingestion and setup
-- `tests/` - Test suites
-- `pinecone/` - Pinecone configuration and agent documentation
+```
+ai-research-assistant/
+├── src/                    # Core application code
+│   ├── agents/            # Multi-agent workflow (Search, Synthesis, Validation, HITL)
+│   ├── api/               # FastAPI backend and endpoints
+│   ├── pipelines/         # Data ingestion pipelines
+│   └── utils/             # Utilities (PDF processing, Pinecone RAG, cost tracking)
+├── scripts/               # Utility scripts for ingestion, setup, and testing
+├── tests/                 # Test suites
+├── data/                  # Local data storage (tasks.db, logs)
+├── docs/                  # Documentation
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile.api         # API service Dockerfile
+├── Dockerfile.streamlit   # Streamlit service Dockerfile
+└── requirements.txt       # Python dependencies
+```
 
 ## RAG Utilities
 
@@ -301,50 +379,17 @@ See `src/agents/` for detailed agent implementations.
 - **Quality**: 0.75-0.90 average confidence, 15-25% HITL trigger rate
 - **Report Length**: 1,200-1,500 words with 18-25 sources
 
-## Current Status & Next Steps
+## Architecture Overview
 
-### M4: API Development & Streamlit Interface (Complete)
+The AI Research Assistant uses a multi-agent architecture built with LangGraph:
 
-**Completed:**
-- ✅ FastAPI backend with full REST API
-- ✅ Background task processing
-- ✅ HITL review via API
-- ✅ Report export (PDF, Markdown)
-- ✅ Streamlit web interface
-  - ✅ Interactive query input
-  - ✅ Real-time workflow visualization
-  - ✅ Report preview and editing
-  - ✅ HITL review interface
-  - ✅ Cost dashboard
-- ✅ Docker containerization
-  - ✅ Docker Compose for local development
-  - ✅ Production Docker configuration
+1. **Data Ingestion** → arXiv papers are fetched, processed, and stored in S3
+2. **Vector Indexing** → Text chunks are embedded and indexed in Pinecone
+3. **Multi-Agent Workflow** → Search → Synthesis → Validation → HITL Review
+4. **API Layer** → FastAPI provides REST endpoints for workflow execution
+5. **Web Interface** → Streamlit offers interactive UI for queries and reports
 
-### M5: Cloud Deployment & Testing (In Progress)
-
-**Deliverable:** Production-ready system deployed on AWS with automated testing
-
-**Completed:**
-- ✅ Docker deployment setup
-
-**In Progress:**
-- 📋 Deploy FastAPI and Streamlit on AWS EC2
-- 📋 Configure production environment and environment variables
-- 📋 Write unit tests for core functions (chunking, citation extraction, validation)
-- 📋 Implement integration tests for complete workflow
-- 📋 Set up GitHub Actions CI/CD pipeline
-- 📋 Test with 10-15 sample queries across different topics
-
-### M6: Final Polish & Documentation (Planned)
-
-**Deliverable:** Complete project ready for submission with documentation and demo
-
-- Comprehensive testing and bug fixes
-- Optimize performance and token usage
-- Create user documentation and README
-- Prepare demo video showcasing key features
-- Write final project report
-- Presentation preparation and rehearsal
+See [docs/AGENTS.md](docs/AGENTS.md) for detailed agent documentation.
 
 ## API Reference
 
@@ -357,54 +402,104 @@ See `src/agents/` for detailed agent implementations.
 
 ## Troubleshooting
 
+### Port Already in Use
 ```bash
-# Port already in use
-lsof -i :8000  # Linux/Mac: netstat -ano | findstr :8000 (Windows)
+# Linux/Mac
+lsof -i :8000
+kill -9 <PID>
 
-# Database errors - reset database
-rm data/tasks.db  # Will be recreated on next API start
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+```
 
-# Import errors - reinstall dependencies
+### Database Errors
+```bash
+# Reset database (will be recreated on next API start)
+rm data/tasks.db
+```
+
+### Import Errors
+```bash
+# Reinstall dependencies
 pip install -r requirements.txt --force-reinstall
+```
 
-# Check task status/debug
-curl "http://localhost:8000/api/v1/debug/{task_id}"
-
-# Verify environment variables
+### Environment Variables
+```bash
+# Verify environment variables are loaded
 python -c "import os; print('OPENAI_API_KEY:', bool(os.getenv('OPENAI_API_KEY')))"
+```
+
+### API Issues
+```bash
+# Check API health
+curl http://localhost:8000/health
+
+# Check task status
+curl "http://localhost:8000/api/v1/status/{task_id}"
+
+# View API logs
+docker compose logs api  # If using Docker
+# Or check: src/logs/*.log
+```
+
+### Docker Issues
+See [DOCKER.md](DOCKER.md) troubleshooting section for Docker-specific issues.
+
+### EC2 Deployment Issues
+See [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md) troubleshooting section for deployment issues.
+
+## Testing the CI/CD Pipeline
+
+The project includes a GitHub Actions CI/CD pipeline that runs automatically on pushes and PRs. See [.github/workflows/TESTING.md](.github/workflows/TESTING.md) for detailed testing instructions.
+
+**Quick test:**
+```bash
+# Test locally (simulates CI/CD checks)
+./scripts/test_ci_locally.sh
+
+# Or push to GitHub to trigger the workflow
+git push origin main
+# Then check the "Actions" tab on GitHub
 ```
 
 ## Development
 
+### Code Quality
 ```bash
 # Code formatting
-pip install black isort && black src/ tests/ && isort src/ tests/
+pip install black isort
+black src/ tests/
+isort src/ tests/
 
 # Type checking
-pip install mypy && mypy src/
+pip install mypy
+mypy src/
 
 # Linting
-pip install flake8 pylint && flake8 src/ tests/ && pylint src/
+pip install flake8 pylint
+flake8 src/ tests/
+pylint src/
 ```
+
+### Contributing
+1. Create a feature branch
+2. Make your changes
+3. Run tests: `pytest tests/ -v`
+4. Ensure code passes linting and type checking
+5. Submit a pull request
 
 ## Production Deployment
 
-Choose your deployment platform:
-
-### Option 1: Google Cloud Run (Simpler, Serverless) ⚡
-- **[CLOUD_RUN_DEPLOYMENT.md](CLOUD_RUN_DEPLOYMENT.md)** - Deploy to Google Cloud Run
-- ✅ **Pros**: No infrastructure management, auto-scaling, pay-per-use, built-in HTTPS
-- ⚠️ **Cons**: Requires refactoring (stateless architecture, move SQLite to Cloud SQL)
-- **Best for**: Low/moderate traffic, want simplicity, willing to make code changes
-
-### Option 2: AWS EC2 (More Control, Traditional) 🖥️
+### AWS EC2 Deployment 🖥️
 - **[EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md)** - Step-by-step guide for deploying on AWS EC2
 - ✅ **Pros**: Full control, works with current code (SQLite, local files), no code changes needed
-- ⚠️ **Cons**: More setup (security groups, VPC, SSH), always running costs
+- ⚠️ **Cons**: Requires setup (security groups, VPC, SSH), always running costs
 - **Best for**: High traffic, need stateful services, want minimal code changes
 
-### Docker Setup
-- **[DOCKER.md](DOCKER.md)** - Detailed Docker deployment instructions for both platforms
+### Docker Deployment
+- **[DOCKER.md](DOCKER.md)** - Detailed Docker deployment instructions including production configuration
 
 ### Manual Deployment
 
@@ -417,3 +512,14 @@ export TASK_DB_PATH=/var/lib/ai-research/tasks.db
 pip install gunicorn
 gunicorn src.api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 120
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support & Documentation
+
+- **API Documentation**: Interactive docs available at `http://localhost:8000/docs` when API is running
+- **Agent Documentation**: See [docs/AGENTS.md](docs/AGENTS.md) for detailed agent implementation
+- **Docker Guide**: See [DOCKER.md](DOCKER.md) for Docker deployment instructions
+- **EC2 Deployment**: See [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md) for AWS deployment guide
