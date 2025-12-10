@@ -5,12 +5,12 @@ Converts markdown reports to PDF format with proper styling.
 """
 
 import logging
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
-from io import BytesIO
 
 import markdown
-from weasyprint import HTML, CSS
+from weasyprint import CSS, HTML
 from weasyprint.text.fonts import FontConfiguration
 
 logger = logging.getLogger(__name__)

@@ -3,8 +3,7 @@ Agent Prompt Templates
 Concise prompts for search, synthesis, and validation agents
 """
 
-from typing import List, Dict, Any
-
+from typing import Any, Dict, List
 
 # ============================================================================
 # SEARCH AGENT PROMPT

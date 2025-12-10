@@ -3,11 +3,12 @@ M1: Infrastructure Setup Tests
 Tests for AWS S3, environment configuration
 """
 
-import pytest
 import os
-from dotenv import load_dotenv
+
 import boto3
+import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
 
 load_dotenv()
 

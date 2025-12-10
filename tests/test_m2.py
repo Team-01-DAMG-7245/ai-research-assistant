@@ -3,8 +3,8 @@ M2: Data Pipeline Tests
 Tests for arXiv ingestion and PDF processing
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add project root to Python path
@@ -12,6 +12,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import pytest
+
 from src.pipelines.ingestion import ArxivIngestion
 from src.utils.pdf_processor import PDFProcessor
 from src.utils.s3_client import S3Client

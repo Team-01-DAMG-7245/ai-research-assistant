@@ -3,12 +3,13 @@ S3 Client Utility
 Handles all S3 operations for the project
 """
 
+import logging
+import os
+from pathlib import Path
+
 import boto3
 from botocore.exceptions import ClientError
-import os
 from dotenv import load_dotenv
-import logging
-from pathlib import Path
 
 load_dotenv()
 

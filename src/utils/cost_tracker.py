@@ -8,11 +8,11 @@ timestamps, tokens, and costs. Stores logs in JSON format for analysis.
 import json
 import logging
 import threading
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from collections import defaultdict
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

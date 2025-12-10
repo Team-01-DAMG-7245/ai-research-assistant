@@ -4,23 +4,23 @@ Pytest tests for research agent nodes.
 Tests for search_agent, synthesis_agent, validation_agent, and workflow integration.
 """
 
-import pytest
-import sys
 import json
+import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.agents.state import ResearchState
 from src.agents.search_agent import search_agent_node
+from src.agents.state import ResearchState
 from src.agents.synthesis_agent import synthesis_agent_node
 from src.agents.validation_agent import validation_agent_node, verify_citations
 from src.agents.workflow import compiled_workflow
-
 
 # ============================================================================
 # FIXTURES

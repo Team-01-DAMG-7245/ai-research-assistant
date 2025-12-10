@@ -2,14 +2,15 @@
 PDF Layout Detection using LayoutParser
 """
 
-import cv2
 import json
-import numpy as np
-from pathlib import Path
-from PIL import Image
-import pdfplumber
-from typing import Dict, List, Optional
 import logging
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import cv2
+import numpy as np
+import pdfplumber
+from PIL import Image
 
 try:
     import layoutparser as lp

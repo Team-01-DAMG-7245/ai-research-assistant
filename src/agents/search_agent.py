@@ -15,15 +15,11 @@ import json
 import time
 from typing import Any, Dict, List, Tuple
 
+from ..utils.logger import (get_agent_logger, log_api_call,
+                            log_error_with_context, log_performance_metrics,
+                            log_state_transition)
 from ..utils.openai_client import OpenAIClient
 from ..utils.pinecone_rag import semantic_search
-from ..utils.logger import (
-    get_agent_logger,
-    log_state_transition,
-    log_api_call,
-    log_performance_metrics,
-    log_error_with_context,
-)
 from .prompts import format_search_agent_prompt
 from .state import ResearchState
 
@@ -34,8 +30,8 @@ try:
 
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
-    from src.api.task_manager import get_task_manager
     from src.api.models import TaskStatus
+    from src.api.task_manager import get_task_manager
 
     TASK_MANAGER_AVAILABLE = True
 except ImportError:

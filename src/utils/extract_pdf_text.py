@@ -2,12 +2,13 @@
 PDF Text Extraction with OCR Fallback
 """
 
+import json
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional
+
 import pdfplumber
 import pytesseract
-from pathlib import Path
-import json
-from typing import Dict, List, Optional
-import logging
 
 logging.basicConfig(level=logging.INFO)
 

@@ -2,10 +2,11 @@
 PDF Processor - Orchestrates text and table extraction
 """
 
-from pathlib import Path
-from typing import Dict, Optional, List
 import json
 import logging
+from pathlib import Path
+from typing import Dict, List, Optional
+
 from .extract_pdf_text import PDFTextExtractor
 from .extract_tables_hybrid import PDFTableExtractor
 

@@ -6,11 +6,13 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Path, Query, status
 from fastapi.responses import Response
 
 from src.utils.pdf_generator import markdown_to_pdf
-from ..models import ReportResponse, TaskStatus, ErrorResponse, SourceInfo
+
+from ..models import ErrorResponse, ReportResponse, SourceInfo, TaskStatus
 from ..task_manager import get_task_manager
 
 logger = logging.getLogger(__name__)

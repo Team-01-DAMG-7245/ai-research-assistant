@@ -9,11 +9,11 @@ import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Generator
-from dotenv import load_dotenv
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 # Load .env file to get real API keys
@@ -29,7 +29,6 @@ os.environ["API_MODE"] = "true"
 from src.api.main import app
 from src.api.models import TaskStatus
 from src.api.task_manager import TaskManager, get_task_manager
-
 
 # ============================================================================
 # Test Fixtures
@@ -112,7 +111,8 @@ def client(test_db, mock_workflow_executor) -> Generator[TestClient, None, None]
     os.environ["TASK_DB_PATH"] = test_db
 
     # Reset task manager singleton to use test database
-    from src.api.task_manager import get_task_manager, set_task_manager, TaskManager
+    from src.api.task_manager import (TaskManager, get_task_manager,
+                                      set_task_manager)
 
     # Create new task manager with test database
     test_task_manager = TaskManager(db_path=test_db)

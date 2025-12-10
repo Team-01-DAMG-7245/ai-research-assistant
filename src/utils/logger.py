@@ -11,10 +11,9 @@ This module provides a unified logging setup with:
 
 import logging
 import sys
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Optional
-
 
 # Base logs directory
 _LOGS_DIR = Path(__file__).parent.parent / "logs"

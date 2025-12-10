@@ -3,17 +3,18 @@ OpenAI Client Utility
 Robust client for OpenAI API with retry logic, error handling, and cost tracking
 """
 
+import logging
 import os
 import time
-import logging
-from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import wraps
+from typing import Any, Dict, List, Optional, Union
 
-from dotenv import load_dotenv
-from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError, APIError
 import tiktoken
+from dotenv import load_dotenv
+from openai import (APIConnectionError, APIError, APITimeoutError, OpenAI,
+                    RateLimitError)
 
 # Import cost tracker
 try:

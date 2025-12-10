@@ -6,16 +6,17 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.agents.workflow import compiled_workflow
 from src.agents.state import ResearchState
-from .task_manager import get_task_manager, TaskManager
+from src.agents.workflow import compiled_workflow
+
 from .models import TaskStatus
+from .task_manager import TaskManager, get_task_manager
 
 logger = logging.getLogger(__name__)
 

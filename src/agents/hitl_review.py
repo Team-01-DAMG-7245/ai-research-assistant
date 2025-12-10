@@ -19,12 +19,8 @@ import sys
 import time
 from typing import Any, Dict
 
-from ..utils.logger import (
-    get_agent_logger,
-    log_state_transition,
-    log_performance_metrics,
-    log_error_with_context,
-)
+from ..utils.logger import (get_agent_logger, log_error_with_context,
+                            log_performance_metrics, log_state_transition)
 from .state import ResearchState
 
 # Import task manager for status updates (only when needed)
@@ -33,8 +29,8 @@ try:
 
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
-    from src.api.task_manager import get_task_manager
     from src.api.models import TaskStatus
+    from src.api.task_manager import get_task_manager
 
     TASK_MANAGER_AVAILABLE = True
 except ImportError:

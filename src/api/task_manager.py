@@ -2,14 +2,14 @@
 Task Manager for handling research tasks in SQLite database
 """
 
-import sqlite3
 import json
 import logging
 import os
+import sqlite3
 from datetime import datetime
-from typing import Optional, Dict, List, Any, Tuple
 from pathlib import Path
 from threading import Lock
+from typing import Any, Dict, List, Optional, Tuple
 
 from .models import TaskStatus
 

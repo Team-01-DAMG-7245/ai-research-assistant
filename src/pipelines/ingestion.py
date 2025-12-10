@@ -10,11 +10,13 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import arxiv
-from typing import List, Dict, Optional
-import logging
 import json
+import logging
 from datetime import datetime
+from typing import Dict, List, Optional
+
+import arxiv
+
 from src.utils.s3_client import S3Client
 
 logging.basicConfig(level=logging.INFO)

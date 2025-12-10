@@ -9,6 +9,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
+
 from pinecone import Pinecone
 
 from .openai_client import OpenAIClient

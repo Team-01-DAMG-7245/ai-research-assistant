@@ -11,17 +11,16 @@ from __future__ import annotations
 from typing import Literal
 
 try:
-    from langgraph.graph import StateGraph, END
+    from langgraph.graph import END, StateGraph
 except ImportError:
     raise ImportError("LangGraph is required. Install it with: pip install langgraph")
 
 from ..utils.logger import get_workflow_logger, log_state_transition
-from .state import ResearchState
+from .hitl_review import hitl_review_node
 from .search_agent import search_agent_node
+from .state import ResearchState
 from .synthesis_agent import synthesis_agent_node
 from .validation_agent import validation_agent_node
-from .hitl_review import hitl_review_node
-
 
 logger = get_workflow_logger()
 

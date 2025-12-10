@@ -2,11 +2,12 @@
 Hybrid Table Extraction using Camelot
 """
 
+import logging
+from pathlib import Path
+from typing import Dict, List
+
 import camelot
 import pdfplumber
-from pathlib import Path
-from typing import List, Dict
-import logging
 
 logging.basicConfig(level=logging.INFO)
 

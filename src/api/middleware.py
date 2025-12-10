@@ -2,11 +2,12 @@
 FastAPI Middleware for CORS, rate limiting, and error handling
 """
 
+import logging
 import os
 import time
-import logging
 from collections import defaultdict
 from typing import Callable
+
 from fastapi import Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

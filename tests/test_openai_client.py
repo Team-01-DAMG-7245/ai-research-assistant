@@ -3,10 +3,11 @@ Tests for OpenAI Client Utility
 Tests for OpenAI client with retry logic, error handling, and cost tracking
 """
 
-import pytest
 import os
 import sys
 from pathlib import Path
+
+import pytest
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -15,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 load_dotenv()
 
-from src.utils.openai_client import OpenAIClient, UsageStats, PRICING
+from src.utils.openai_client import PRICING, OpenAIClient, UsageStats
 
 
 class TestOpenAIClientImport:
@@ -24,7 +25,7 @@ class TestOpenAIClientImport:
     def test_module_import(self):
         """Test that module imports successfully"""
         print("\n🧪 Testing module import...")
-        from src.utils.openai_client import OpenAIClient, UsageStats, PRICING
+        from src.utils.openai_client import PRICING, OpenAIClient, UsageStats
 
         print("   ✅ Module imported successfully")
         assert True
