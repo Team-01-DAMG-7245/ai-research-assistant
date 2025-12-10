@@ -82,12 +82,13 @@ class WorkflowExecutor:
                 "regeneration_count": 0,
             }
             
-            # Update progress
+            # Initial progress update (agents will update their own progress)
+            # This is just to show workflow has started
             self.task_manager.update_task_status(
                 task_id,
                 TaskStatus.PROCESSING,
-                progress=30.0,
-                message="Running search agent..."
+                progress=10.0,
+                message="Workflow started. Initializing agents..."
             )
             
             # Run workflow in thread pool to avoid blocking
@@ -109,6 +110,7 @@ class WorkflowExecutor:
             
             # Extract results
             final_report = final_state.get("final_report", "")
+            report_draft = final_state.get("report_draft", "")
             confidence_score = final_state.get("confidence_score", 0.0)
             original_needs_hitl = final_state.get("needs_hitl", False)
             
@@ -116,8 +118,15 @@ class WorkflowExecutor:
             # (either approved, edited, or auto-approved), so needs_hitl should be False
             if final_report and final_report.strip():
                 needs_hitl = False  # HITL review completed successfully
+                report_to_store = final_report
             else:
                 needs_hitl = original_needs_hitl  # Use original value if no final report
+                # If final_report is empty but report_draft exists, use report_draft
+                # This happens when workflow ends with needs_hitl=True (pending review)
+                if report_draft and report_draft.strip():
+                    report_to_store = report_draft
+                else:
+                    report_to_store = final_report  # Fallback to empty string
             
             # Get sources from retrieved chunks
             retrieved_chunks = final_state.get("retrieved_chunks", [])
@@ -158,7 +167,7 @@ class WorkflowExecutor:
             # Store results in database
             self.task_manager.store_task_result(
                 task_id=task_id,
-                report=final_report,
+                report=report_to_store,
                 sources=sources,
                 confidence=confidence_score,
                 needs_hitl=needs_hitl,
@@ -166,7 +175,8 @@ class WorkflowExecutor:
                     "search_queries": final_state.get("search_queries", []),
                     "num_sources": len(retrieved_chunks),
                     "user_id": user_id,
-                    "hitl_completed": not original_needs_hitl or (final_report and final_report.strip())
+                    "hitl_completed": not original_needs_hitl or (final_report and final_report.strip()),
+                    "validation_result": final_state.get("validation_result", {})
                 }
             )
             
@@ -175,7 +185,7 @@ class WorkflowExecutor:
             return {
                 "success": True,
                 "task_id": task_id,
-                "report": final_report,
+                "report": report_to_store,
                 "confidence": confidence_score,
                 "needs_hitl": needs_hitl,
                 "sources": sources
@@ -240,12 +250,14 @@ class WorkflowExecutor:
                     "success": False,
                     "error": "rejection_reason is required for reject action"
                 }
-            success = task_manager.reject_review(task_id, rejection_reason)
+            success, original_query = task_manager.reject_review(task_id, rejection_reason)
             if success:
+                # Return the original query so the caller can restart the workflow
                 return {
                     "success": True,
                     "task_id": task_id,
-                    "action": "reject"
+                    "action": "reject",
+                    "original_query": original_query
                 }
         else:
             return {

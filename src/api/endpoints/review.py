@@ -5,7 +5,7 @@ Review API Endpoint for HITL (Human-In-The-Loop) review
 import logging
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, status, BackgroundTasks
 
 from ..models import ReviewRequest, ReviewResponse, TaskStatus, ErrorResponse
 from ..task_manager import get_task_manager
@@ -19,7 +19,8 @@ router = APIRouter(prefix="/api/v1", tags=["review"])
 @router.post("/review/{task_id}", response_model=ReviewResponse)
 async def submit_review(
     task_id: str = Path(..., description="Task identifier (UUID)"),
-    request: ReviewRequest = ...
+    request: ReviewRequest = ...,
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     Submit HITL review action (approve, edit, or reject)
@@ -72,6 +73,30 @@ async def submit_review(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=result.get("error", "Failed to process review action")
             )
+        
+        # If rejection was successful, trigger workflow regeneration
+        if request.action.value == "reject" and result.get("original_query"):
+            original_query = result.get("original_query")
+            # Get user_id from task metadata if available
+            task = task_manager.get_task(task_id)
+            metadata = task.get('metadata', {})
+            if isinstance(metadata, str):
+                import json
+                try:
+                    metadata = json.loads(metadata)
+                except:
+                    metadata = {}
+            user_id = metadata.get('user_id')
+            
+            # Trigger new workflow execution in background
+            background_tasks.add_task(
+                workflow_executor.execute_research_workflow,
+                task_id=task_id,
+                query=original_query,
+                user_id=user_id
+            )
+            logger.info(f"Triggered workflow regeneration for rejected task {task_id}")
+            
     except HTTPException:
         raise
     except Exception as e:
@@ -86,7 +111,7 @@ async def submit_review(
     message_map = {
         "approve": "Report approved successfully",
         "edit": "Report edited and approved successfully",
-        "reject": "Report rejected"
+        "reject": "Report rejected. Regenerating..."
     }
     message = message_map.get(request.action.value, "Review action processed")
     

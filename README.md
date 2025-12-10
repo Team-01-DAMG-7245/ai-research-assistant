@@ -12,6 +12,16 @@ pip install -r requirements.txt
 # Start API Server
 python src/api/main.py
 
+# Start Streamlit Web Interface
+streamlit run streamlit_app.py
+
+# Docker (Alternative)
+docker compose build                    # Build API + Streamlit
+docker compose up -d                    # Start API + Streamlit
+docker compose --profile airflow up -d  # Start all services (incl. Airflow)
+docker compose logs -f                  # View logs
+docker compose down                     # Stop services
+
 # Run Tests
 pytest tests/test_api.py -v
 
@@ -50,7 +60,7 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - Automated report generation with citations
   - Cost tracking and performance metrics
 
-- 🔄 **M4**: API Development & Streamlit Interface (In Progress)
+- ✅ **M4**: API Development & Streamlit Interface (Complete)
   - ✅ FastAPI backend with async request handling
   - ✅ Background task processing
   - ✅ RESTful API endpoints (/api/research, /api/status, /api/report, /api/review)
@@ -58,20 +68,29 @@ See [Quick Start](#quick-start) section below for detailed instructions.
   - ✅ CORS and rate limiting middleware
   - ✅ SQLite task management
   - ✅ PDF and Markdown report export formats
-  - 🔄 Streamlit web interface (in progress)
-    - Interactive query input
-    - Real-time workflow visualization
-    - Report preview and editing
-    - HITL review interface
-    - Cost dashboard
+  - ✅ Streamlit web interface
+    - ✅ Interactive query input
+    - ✅ Real-time workflow visualization
+    - ✅ Report preview and editing
+    - ✅ HITL review interface
+    - ✅ Cost dashboard
+  - ✅ Docker containerization
+    - ✅ Docker Compose setup for local development
+    - ✅ Multi-container orchestration (API + Streamlit)
+    - ✅ Production Docker configuration
+  - ✅ Apache Airflow integration
+    - ✅ Automated data ingestion pipeline scheduling
+    - ✅ DAG-based workflow orchestration
+    - ✅ Web UI for monitoring and management
 
-- 📋 **M5**: Cloud Deployment & Testing (Planned)
-  - Deploy FastAPI and Streamlit on AWS EC2
-  - Configure production environment and environment variables
-  - Write unit tests for core functions (chunking, citation extraction, validation)
-  - Implement integration tests for complete workflow
-  - Set up GitHub Actions CI/CD pipeline
-  - Test with 10-15 sample queries across different topics
+- 📋 **M5**: Cloud Deployment & Testing (In Progress)
+  - ✅ Docker deployment setup
+  - 📋 Deploy FastAPI and Streamlit on AWS EC2
+  - 📋 Configure production environment and environment variables
+  - 📋 Write unit tests for core functions (chunking, citation extraction, validation)
+  - 📋 Implement integration tests for complete workflow
+  - 📋 Set up GitHub Actions CI/CD pipeline
+  - 📋 Test with 10-15 sample queries across different topics
 
 - 📋 **M6**: Final Polish & Documentation (Planned)
   - Comprehensive testing and bug fixes
@@ -87,7 +106,7 @@ See [Quick Start](#quick-start) section below for detailed instructions.
 - **PDF Processing**: Text extraction and table extraction
 - **Vector Search**: Pinecone integration for semantic search
 - **AWS Integration**: S3 storage and processing pipeline
-- **Pipeline Orchestration**: Simple Python-based pipeline management
+- **Pipeline Orchestration**: Apache Airflow for automated scheduling and monitoring
 - **Multi-Agent RAG Workflow**: LangGraph-based research report generation
 - **Citation Validation**: Automated citation checking and quality assurance
 - **Human-in-the-Loop (HITL)**: Interactive review for low-confidence reports
@@ -110,6 +129,10 @@ cp .env.example .env  # Edit with your API keys
 
 # Setup S3 bucket
 python scripts/setup_s3.py
+
+# Setup Pinecone index
+python scripts/list_pinecone_indexes.py        # List existing indexes
+python scripts/create_pinecone_index.py      # Create new index (if needed)
 ```
 
 **Required environment variables** (in `.env`):
@@ -138,6 +161,62 @@ API available at:
 - **Base URL**: `http://localhost:8000`
 - **Interactive Docs**: `http://localhost:8000/docs`
 - **Health Check**: `http://localhost:8000/health`
+
+### 3a. Start Streamlit Web Interface (Optional)
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Streamlit interface available at:
+- **Web UI**: `http://localhost:8501`
+- Features: Query submission, real-time status tracking, report preview, HITL review, cost dashboard
+
+### 3b. Docker Deployment (Alternative)
+
+**Using Docker Compose Profiles:**
+
+The project uses Docker Compose profiles to selectively start services:
+
+**Default (API + Streamlit only):**
+```bash
+# Build and start only API and Streamlit
+docker compose build
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+**With Airflow (all services):**
+```bash
+# Build and start all services including Airflow
+docker compose --profile airflow build
+docker compose --profile airflow up -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+**Service Access:**
+- API: http://localhost:8000
+- Streamlit: http://localhost:8501
+- Airflow: http://localhost:8080 (username: airflow, password: airflow)
+
+**Quick Reference:**
+- `docker compose up` - Starts API and Streamlit (default)
+- `docker compose --profile airflow up` - Starts all services including Airflow
+- `docker compose build` - Builds API and Streamlit images
+- `docker compose --profile airflow build` - Builds all images including Airflow
+
+See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
+See [AIRFLOW.md](AIRFLOW.md) for Airflow setup and usage.
 
 ### 4. API Usage
 
@@ -247,32 +326,37 @@ See `src/agents/` for detailed agent implementations.
 
 ## Current Status & Next Steps
 
-### M4: API Development & Streamlit Interface (In Progress)
+### M4: API Development & Streamlit Interface (Complete)
 
 **Completed:**
 - ✅ FastAPI backend with full REST API
 - ✅ Background task processing
 - ✅ HITL review via API
 - ✅ Report export (PDF, Markdown)
+- ✅ Streamlit web interface
+  - ✅ Interactive query input
+  - ✅ Real-time workflow visualization
+  - ✅ Report preview and editing
+  - ✅ HITL review interface
+  - ✅ Cost dashboard
+- ✅ Docker containerization
+  - ✅ Docker Compose for local development
+  - ✅ Production Docker configuration
 
-**In Progress:**
-- 🔄 Streamlit web interface
-  - Interactive query input
-  - Real-time workflow visualization
-  - Report preview and editing
-  - HITL review interface
-  - Cost dashboard
-
-### M5: Cloud Deployment & Testing (Planned)
+### M5: Cloud Deployment & Testing (In Progress)
 
 **Deliverable:** Production-ready system deployed on AWS with automated testing
 
-- Deploy FastAPI and Streamlit on AWS EC2
-- Configure production environment and environment variables
-- Write unit tests for core functions (chunking, citation extraction, validation)
-- Implement integration tests for complete workflow
-- Set up GitHub Actions CI/CD pipeline
-- Test with 10-15 sample queries across different topics
+**Completed:**
+- ✅ Docker deployment setup
+
+**In Progress:**
+- 📋 Deploy FastAPI and Streamlit on AWS EC2
+- 📋 Configure production environment and environment variables
+- 📋 Write unit tests for core functions (chunking, citation extraction, validation)
+- 📋 Implement integration tests for complete workflow
+- 📋 Set up GitHub Actions CI/CD pipeline
+- 📋 Test with 10-15 sample queries across different topics
 
 ### M6: Final Polish & Documentation (Planned)
 
@@ -328,6 +412,10 @@ pip install flake8 pylint && flake8 src/ tests/ && pylint src/
 
 ## Production Deployment
 
+See [DOCKER.md](DOCKER.md) for detailed Docker deployment instructions including production setup and EC2 deployment.
+
+### Manual Deployment
+
 ```bash
 # Production environment variables
 export APP_ENV=production DEBUG=false
@@ -337,5 +425,3 @@ export TASK_DB_PATH=/var/lib/ai-research/tasks.db
 pip install gunicorn
 gunicorn src.api.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 120
 ```
-
-**Docker Deployment** (Planned for M5): Multi-container setup (FastAPI + Streamlit) for AWS EC2 deployment.

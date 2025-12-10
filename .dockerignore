@@ -1,0 +1,77 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data (keep structure but ignore large files)
+data/raw/*.pdf
+data/*.db-journal
+*.db-wal
+*.db-shm
+
+# Logs
+logs/*.log
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Model files
+publaynet-model/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pb
+*.onnx
+*.bin
+
+# Temporary files
+*.tmp
+*.temp
+temp_sample.json
+synthesis_results.json
+validation_results.json
+hitl_review_results.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+Dockerfile.dev
+
+# Scripts (keep structure, but these aren't needed in containers)
+scripts/*.md

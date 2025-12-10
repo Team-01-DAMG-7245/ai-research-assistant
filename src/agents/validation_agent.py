@@ -12,6 +12,7 @@ This module defines a LangGraph-style node function that:
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import Any, Dict, List
@@ -27,6 +28,17 @@ from ..utils.logger import (
 from .prompts import VALIDATION_AGENT_PROMPT, format_validation_agent_prompt
 from .state import ResearchState
 
+# Import task manager for status updates (only when needed)
+try:
+    import sys
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+    from src.api.task_manager import get_task_manager
+    from src.api.models import TaskStatus
+    TASK_MANAGER_AVAILABLE = True
+except ImportError:
+    TASK_MANAGER_AVAILABLE = False
 
 logger = get_agent_logger("validation_agent")
 
@@ -194,6 +206,20 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
     logger.info("VALIDATION AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
     
+    # Update task status to show validation agent is running
+    if TASK_MANAGER_AVAILABLE:
+        try:
+            task_manager = get_task_manager()
+            task_manager.update_task_status(
+                task_id,
+                TaskStatus.PROCESSING,
+                progress=80.0,
+                message="Validating report quality and citations..."
+            )
+            logger.info("Updated task status: Validation agent running | task_id=%s", task_id)
+        except Exception as e:
+            logger.warning("Failed to update task status: %s", e)
+    
     new_state = dict(state)
     new_state["current_agent"] = "validation"
 
@@ -352,7 +378,18 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
         confidence_duration = time.time() - confidence_start_time
 
         # 6) Determine needs_hitl
-        needs_hitl = confidence_score < 0.7
+        # HITL threshold: if confidence < threshold, human review is needed
+        # Can be overridden via environment variable for testing
+        HITL_THRESHOLD = float(os.getenv("HITL_CONFIDENCE_THRESHOLD", "0.7"))
+        needs_hitl = confidence_score < HITL_THRESHOLD
+        
+        logger.info(
+            "HITL decision | task_id=%s | confidence=%.2f | threshold=%.2f | needs_hitl=%s",
+            task_id,
+            confidence_score,
+            HITL_THRESHOLD,
+            needs_hitl
+        )
 
         # Add citation verification results to validation_result
         validation_result["invalid_citations"] = invalid_citations

@@ -31,6 +31,17 @@ from ..utils.logger import (
 from .prompts import SYNTHESIS_AGENT_SYSTEM_PROMPT, SYNTHESIS_AGENT_USER_PROMPT
 from .state import ResearchState
 
+# Import task manager for status updates (only when needed)
+try:
+    import sys
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+    from src.api.task_manager import get_task_manager
+    from src.api.models import TaskStatus
+    TASK_MANAGER_AVAILABLE = True
+except ImportError:
+    TASK_MANAGER_AVAILABLE = False
 
 logger = get_agent_logger("synthesis_agent")
 
@@ -131,6 +142,20 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
     logger.info("=" * 70)
     logger.info("SYNTHESIS AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
+    
+    # Update task status to show synthesis agent is running
+    if TASK_MANAGER_AVAILABLE:
+        try:
+            task_manager = get_task_manager()
+            task_manager.update_task_status(
+                task_id,
+                TaskStatus.PROCESSING,
+                progress=60.0,
+                message="Synthesizing research report..."
+            )
+            logger.info("Updated task status: Synthesis agent running | task_id=%s", task_id)
+        except Exception as e:
+            logger.warning("Failed to update task status: %s", e)
     
     new_state = dict(state)
     new_state["current_agent"] = "synthesis"
@@ -335,6 +360,20 @@ def synthesis_agent_node(state: ResearchState) -> ResearchState:
         new_state["retrieved_chunks"] = all_sources
         new_state["source_count"] = len(all_sources)
         new_state["error"] = None
+        
+        # Update task status after synthesis completes
+        if TASK_MANAGER_AVAILABLE:
+            try:
+                task_manager = get_task_manager()
+                task_manager.update_task_status(
+                    task_id,
+                    TaskStatus.PROCESSING,
+                    progress=70.0,
+                    message="Synthesis complete. Validating report..."
+                )
+                logger.info("Updated task status: Synthesis complete | task_id=%s", task_id)
+            except Exception as e:
+                logger.warning("Failed to update task status after synthesis: %s", e)
 
         total_duration = time.time() - start_time
         log_performance_metrics(

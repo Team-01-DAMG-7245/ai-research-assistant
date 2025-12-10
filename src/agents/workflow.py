@@ -106,7 +106,7 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
     
     if needs_hitl:
         logger.info(
-            "Routing to HITL review | task_id=%s | confidence=%.2f | needs_hitl=True",
+            "Routing to HITL review | task_id=%s | confidence=%.2f | needs_hitl=True | reason=confidence_below_threshold",
             task_id,
             confidence_score,
         )
@@ -120,7 +120,7 @@ def route_after_validation(state: ResearchState) -> Literal["hitl_review", "set_
         return "hitl_review"
     else:
         logger.info(
-            "Skipping HITL review | task_id=%s | confidence=%.2f | needs_hitl=False",
+            "Skipping HITL review | task_id=%s | confidence=%.2f | needs_hitl=False | reason=confidence_above_threshold(>=0.7)",
             task_id,
             confidence_score,
         )
@@ -200,6 +200,22 @@ def route_after_hitl(state: ResearchState) -> Literal["search", "set_final_repor
             action="approved_or_edited",
         )
         return "set_final_report"
+    elif not final_report and not error:
+        # No final_report and no error means pending review (API mode)
+        # The workflow executor will handle setting status to PENDING_REVIEW
+        logger.info(
+            "HITL review pending (awaiting API review) | task_id=%s",
+            task_id,
+        )
+        log_state_transition(
+            logger,
+            from_state="hitl_review",
+            to_state="pending_review",
+            task_id=task_id,
+            action="pending",
+        )
+        # Return "end" to stop workflow - API will resume when review is submitted
+        return "end"
     else:
         # Unexpected state, end with error
         logger.warning(
@@ -266,6 +282,7 @@ def build_workflow() -> StateGraph:
             "search": "search",  # Regenerate: loop back to search
             "set_final_report": "set_final_report",  # Approved/edited: proceed to final
             "handle_max_retries": "handle_max_retries",  # Max retries exceeded: handle error
+            "end": END,  # Pending review: end workflow, wait for API
         },
     )
     

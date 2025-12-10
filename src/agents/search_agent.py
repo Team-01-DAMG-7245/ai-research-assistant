@@ -27,6 +27,17 @@ from ..utils.logger import (
 from .prompts import format_search_agent_prompt
 from .state import ResearchState
 
+# Import task manager for status updates (only when needed)
+try:
+    import sys
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+    from src.api.task_manager import get_task_manager
+    from src.api.models import TaskStatus
+    TASK_MANAGER_AVAILABLE = True
+except ImportError:
+    TASK_MANAGER_AVAILABLE = False
 
 logger = get_agent_logger("search_agent")
 
@@ -143,6 +154,20 @@ def search_agent_node(state: ResearchState) -> ResearchState:
     logger.info("=" * 70)
     logger.info("SEARCH AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
+    
+    # Update task status to show search agent is running
+    if TASK_MANAGER_AVAILABLE:
+        try:
+            task_manager = get_task_manager()
+            task_manager.update_task_status(
+                task_id,
+                TaskStatus.PROCESSING,
+                progress=40.0,
+                message="Searching for relevant papers..."
+            )
+            logger.info("Updated task status: Search agent running | task_id=%s", task_id)
+        except Exception as e:
+            logger.warning("Failed to update task status: %s", e)
     
     new_state: ResearchState = dict(state)  # type: ignore[assignment]
     new_state["current_agent"] = "search_agent"
