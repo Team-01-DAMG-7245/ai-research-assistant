@@ -75,7 +75,7 @@ jobs:
       run: black --check --quiet src/ tests/ || exit 1
     
     - name: Check import sorting with isort
-      run: isort --check-only src/ tests/ || exit 1
+      run: isort --check-only --profile black src/ tests/ || exit 1
     
     - name: Lint with flake8
       run: |

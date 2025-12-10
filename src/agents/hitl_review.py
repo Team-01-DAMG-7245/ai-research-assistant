@@ -19,8 +19,12 @@ import sys
 import time
 from typing import Any, Dict
 
-from ..utils.logger import (get_agent_logger, log_error_with_context,
-                            log_performance_metrics, log_state_transition)
+from ..utils.logger import (
+    get_agent_logger,
+    log_error_with_context,
+    log_performance_metrics,
+    log_state_transition,
+)
 from .state import ResearchState
 
 # Import task manager for status updates (only when needed)
