@@ -17,13 +17,9 @@ import re
 import time
 from typing import Any, Dict, List
 
-from ..utils.logger import (
-    get_agent_logger,
-    log_api_call,
-    log_error_with_context,
-    log_performance_metrics,
-    log_state_transition,
-)
+from ..utils.logger import (get_agent_logger, log_api_call,
+                            log_error_with_context, log_performance_metrics,
+                            log_state_transition)
 from ..utils.openai_client import OpenAIClient
 from .prompts import VALIDATION_AGENT_PROMPT, format_validation_agent_prompt
 from .state import ResearchState

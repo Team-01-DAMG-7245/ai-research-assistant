@@ -111,7 +111,8 @@ def client(test_db, mock_workflow_executor) -> Generator[TestClient, None, None]
     os.environ["TASK_DB_PATH"] = test_db
 
     # Reset task manager singleton to use test database
-    from src.api.task_manager import TaskManager, get_task_manager, set_task_manager
+    from src.api.task_manager import (TaskManager, get_task_manager,
+                                      set_task_manager)
 
     # Create new task manager with test database
     test_task_manager = TaskManager(db_path=test_db)
