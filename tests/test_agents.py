@@ -366,9 +366,9 @@ def test_validation_agent_high_confidence(
 ):
     """Test validation_agent_node with high confidence report."""
     # Setup state with report
-    sample_state[
-        "report_draft"
-    ] = "This is a well-cited report [Source 1] [Source 2] [Source 3]."
+    sample_state["report_draft"] = (
+        "This is a well-cited report [Source 1] [Source 2] [Source 3]."
+    )
     sample_state["retrieved_chunks"] = [
         {"text": "Content 1", "doc_id": "doc1"},
         {"text": "Content 2", "doc_id": "doc2"},

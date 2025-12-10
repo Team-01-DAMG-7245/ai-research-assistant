@@ -85,9 +85,11 @@ async def get_report(
                     source_id=s.get("source_id", i) if isinstance(s, dict) else i,
                     title=s.get("title", "Unknown") if isinstance(s, dict) else str(s),
                     url=s.get("url", "") if isinstance(s, dict) else "",
-                    relevance_score=float(s.get("relevance_score", 0.0))
-                    if isinstance(s, dict)
-                    else 0.0,
+                    relevance_score=(
+                        float(s.get("relevance_score", 0.0))
+                        if isinstance(s, dict)
+                        else 0.0
+                    ),
                 )
             )
         except (ValueError, TypeError, AttributeError) as e:
@@ -192,9 +194,9 @@ async def get_report(
                 "task_id": task_id,
                 "confidence_score": float(task.get("confidence_score", 0.0)),
                 "source_count": len(sources),
-                "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-                if created_at
-                else None,
+                "created_at": (
+                    created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if created_at else None
+                ),
             }
 
             # Generate PDF bytes (with sources included in markdown)

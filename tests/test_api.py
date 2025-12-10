@@ -675,7 +675,7 @@ def test_review_edit_without_content(client: TestClient, pending_review_task_id:
         f"/api/v1/review/{pending_review_task_id}",
         json={
             "action": "edit",
-            "task_id": pending_review_task_id
+            "task_id": pending_review_task_id,
             # Missing edited_report
         },
     )
@@ -692,7 +692,7 @@ def test_review_reject_without_reason(client: TestClient, pending_review_task_id
         f"/api/v1/review/{pending_review_task_id}",
         json={
             "action": "reject",
-            "task_id": pending_review_task_id
+            "task_id": pending_review_task_id,
             # Missing rejection_reason
         },
     )

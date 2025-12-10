@@ -135,9 +135,11 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
                     "error": "Internal server error",
-                    "detail": str(e)
-                    if os.getenv("DEBUG") == "true"
-                    else "An unexpected error occurred",
+                    "detail": (
+                        str(e)
+                        if os.getenv("DEBUG") == "true"
+                        else "An unexpected error occurred"
+                    ),
                 },
             )
 

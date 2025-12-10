@@ -261,9 +261,9 @@ class CostTracker:
                     r.completion_tokens for r in self._records
                 ),
                 "total_duration_seconds": total_duration,
-                "average_cost_per_call": self.get_total_cost() / len(self._records)
-                if self._records
-                else 0.0,
+                "average_cost_per_call": (
+                    self.get_total_cost() / len(self._records) if self._records else 0.0
+                ),
                 "cost_by_operation": self.get_cost_by_operation(),
                 "cost_by_model": self.get_cost_by_model(),
                 "calls_by_operation": dict(calls_by_operation),

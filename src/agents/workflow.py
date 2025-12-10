@@ -72,9 +72,9 @@ def handle_max_retries_node(state: ResearchState) -> ResearchState:
     task_id = state.get("task_id", "unknown")
     regeneration_count = state.get("regeneration_count", 0)
     new_state = dict(state)
-    new_state[
-        "error"
-    ] = f"Max regeneration attempts ({regeneration_count}) exceeded. Report could not be improved after multiple attempts."
+    new_state["error"] = (
+        f"Max regeneration attempts ({regeneration_count}) exceeded. Report could not be improved after multiple attempts."
+    )
     new_state["final_report"] = ""
     logger.error(
         "Max regenerations exceeded, ending workflow | task_id=%s | attempts=%d",

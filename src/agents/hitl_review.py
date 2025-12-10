@@ -458,9 +458,9 @@ def hitl_review_node(state: ResearchState) -> ResearchState:
 
         elif action == "reject":
             new_state["final_report"] = ""
-            new_state[
-                "error"
-            ] = "Report rejected by human reviewer. Regeneration required."
+            new_state["error"] = (
+                "Report rejected by human reviewer. Regeneration required."
+            )
             # Increment regeneration count
             current_count = state.get("regeneration_count", 0)
             new_state["regeneration_count"] = current_count + 1
