@@ -3,8 +3,7 @@ Agent Prompt Templates
 Concise prompts for search, synthesis, and validation agents
 """
 
-from typing import List, Dict, Any
-
+from typing import Any, Dict, List
 
 # ============================================================================
 # SEARCH AGENT PROMPT
@@ -30,10 +29,10 @@ User query: {user_query}
 def format_search_agent_prompt(user_query: str) -> str:
     """
     Format search agent prompt with user query
-    
+
     Args:
         user_query: The user's research question
-        
+
     Returns:
         Formatted prompt string
     """
@@ -74,18 +73,16 @@ Instructions:
 
 
 def format_synthesis_agent_prompt(
-    topic: str,
-    sources: List[Dict[str, Any]],
-    include_system: bool = True
+    topic: str, sources: List[Dict[str, Any]], include_system: bool = True
 ) -> Dict[str, str]:
     """
     Format synthesis agent prompt with topic and sources
-    
+
     Args:
         topic: Research topic/question
         sources: List of source dictionaries with 'content' and optionally 'id' or 'source_id'
         include_system: Whether to include system prompt
-        
+
     Returns:
         Dictionary with 'system' and 'user' prompts (or just 'user' if include_system=False)
     """
@@ -94,40 +91,33 @@ def format_synthesis_agent_prompt(
         f"[Source {i+1}]\n{sources[i].get('content', str(sources[i]))}"
         for i in range(len(sources))
     )
-    
-    user_prompt = SYNTHESIS_AGENT_USER_PROMPT.format(
-        topic=topic,
-        sources=sources_text
-    )
-    
+
+    user_prompt = SYNTHESIS_AGENT_USER_PROMPT.format(topic=topic, sources=sources_text)
+
     if include_system:
-        return {
-            "system": SYNTHESIS_AGENT_SYSTEM_PROMPT,
-            "user": user_prompt
-        }
+        return {"system": SYNTHESIS_AGENT_SYSTEM_PROMPT, "user": user_prompt}
     else:
         return {"user": user_prompt}
 
 
 def format_synthesis_agent_messages(
-    topic: str,
-    sources: List[Dict[str, Any]]
+    topic: str, sources: List[Dict[str, Any]]
 ) -> List[Dict[str, str]]:
     """
     Format synthesis agent prompt as OpenAI chat messages
-    
+
     Args:
         topic: Research topic/question
         sources: List of source dictionaries with 'content'
-        
+
     Returns:
         List of message dicts ready for OpenAI API
     """
     prompts = format_synthesis_agent_prompt(topic, sources, include_system=True)
-    
+
     return [
         {"role": "system", "content": prompts["system"]},
-        {"role": "user", "content": prompts["user"]}
+        {"role": "user", "content": prompts["user"]},
     ]
 
 
@@ -164,17 +154,14 @@ Sources (for reference):
 """
 
 
-def format_validation_agent_prompt(
-    report: str,
-    sources: List[Dict[str, Any]]
-) -> str:
+def format_validation_agent_prompt(report: str, sources: List[Dict[str, Any]]) -> str:
     """
     Format validation agent prompt with report and sources
-    
+
     Args:
         report: The generated research report to validate
         sources: List of source dictionaries used in the report
-        
+
     Returns:
         Formatted prompt string
     """
@@ -183,29 +170,28 @@ def format_validation_agent_prompt(
         f"[Source {i+1}]\n{sources[i].get('content', str(sources[i]))}"
         for i in range(len(sources))
     )
-    
-    return VALIDATION_AGENT_PROMPT.format(
-        report=report,
-        sources=sources_text
-    )
+
+    return VALIDATION_AGENT_PROMPT.format(report=report, sources=sources_text)
 
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def count_sources_in_report(report: str) -> List[int]:
     """
     Extract all source citation numbers from a report
-    
+
     Args:
         report: Report text with [Source N] citations
-        
+
     Returns:
         List of source numbers found in the report
     """
     import re
-    pattern = r'\[Source\s+(\d+)\]'
+
+    pattern = r"\[Source\s+(\d+)\]"
     matches = re.findall(pattern, report, re.IGNORECASE)
     return [int(m) for m in matches]
 
@@ -213,23 +199,23 @@ def count_sources_in_report(report: str) -> List[int]:
 def validate_citation_range(report: str, num_sources: int) -> Dict[str, Any]:
     """
     Quick validation of citation numbers in report
-    
+
     Args:
         report: Report text
         num_sources: Total number of sources available
-        
+
     Returns:
         Dictionary with validation results
     """
     cited_sources = set(count_sources_in_report(report))
-    
+
     invalid_citations = [n for n in cited_sources if n < 1 or n > num_sources]
-    
+
     return {
         "cited_sources": sorted(cited_sources),
         "invalid_citations": invalid_citations,
         "coverage": len(cited_sources) / num_sources if num_sources > 0 else 0.0,
-        "has_invalid": len(invalid_citations) > 0
+        "has_invalid": len(invalid_citations) > 0,
     }
 
 
@@ -245,13 +231,13 @@ if __name__ == "__main__":
     print("SEARCH AGENT PROMPT")
     print("=" * 70)
     print(search_prompt)
-    
+
     # Example 2: Synthesis Agent
     topic = "Transformer architectures in NLP"
     sources = [
         {"content": "Transformer models use self-attention mechanisms..."},
         {"content": "Recent work shows improved efficiency with..."},
-        {"content": "The architecture enables parallel processing..."}
+        {"content": "The architecture enables parallel processing..."},
     ]
     synthesis_prompts = format_synthesis_agent_prompt(topic, sources)
     print("\n" + "=" * 70)
@@ -259,7 +245,7 @@ if __name__ == "__main__":
     print("=" * 70)
     print("System:", synthesis_prompts["system"][:100] + "...")
     print("\nUser:", synthesis_prompts["user"][:200] + "...")
-    
+
     # Example 3: Validation Agent
     report = "Transformers revolutionized NLP [Source 1]. Recent improvements show better efficiency [Source 2]."
     validation_prompt = format_validation_agent_prompt(report, sources)
@@ -267,11 +253,10 @@ if __name__ == "__main__":
     print("VALIDATION AGENT PROMPT")
     print("=" * 70)
     print(validation_prompt[:300] + "...")
-    
+
     # Example 4: Citation validation
     validation_result = validate_citation_range(report, len(sources))
     print("\n" + "=" * 70)
     print("CITATION VALIDATION")
     print("=" * 70)
     print(validation_result)
-

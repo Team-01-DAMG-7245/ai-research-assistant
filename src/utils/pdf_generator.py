@@ -5,12 +5,12 @@ Converts markdown reports to PDF format with proper styling.
 """
 
 import logging
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
-from io import BytesIO
 
 import markdown
-from weasyprint import HTML, CSS
+from weasyprint import CSS, HTML
 from weasyprint.text.fonts import FontConfiguration
 
 logger = logging.getLogger(__name__)
@@ -20,85 +20,89 @@ def markdown_to_pdf(
     markdown_content: str,
     output_path: Optional[str] = None,
     title: Optional[str] = None,
-    metadata: Optional[dict] = None
+    metadata: Optional[dict] = None,
 ) -> bytes:
     """
     Convert markdown content to PDF bytes.
-    
+
     Args:
         markdown_content: Markdown text to convert
         output_path: Optional path to save PDF file (if None, returns bytes only)
         title: Optional title for the PDF document
         metadata: Optional metadata dict (e.g., task_id, confidence_score)
-    
+
     Returns:
         PDF file as bytes
     """
     try:
         # Convert markdown to HTML
         # Use safe extensions that don't require additional dependencies
-        extensions = ['extra', 'tables']
+        extensions = ["extra", "tables"]
         try:
             # Try to use codehilite if available (requires Pygments)
             html_content = markdown.markdown(
-                markdown_content,
-                extensions=extensions + ['codehilite']
+                markdown_content, extensions=extensions + ["codehilite"]
             )
         except Exception:
             # Fallback to basic extensions if codehilite fails
-            html_content = markdown.markdown(
-                markdown_content,
-                extensions=extensions
-            )
-        
+            html_content = markdown.markdown(markdown_content, extensions=extensions)
+
         # Create styled HTML document
         html_doc = _create_html_document(html_content, title, metadata)
-        
+
         # Generate PDF
         font_config = FontConfiguration()
         pdf_bytes = HTML(string=html_doc).write_pdf(font_config=font_config)
-        
+
         # Save to file if output_path provided
         if output_path:
             output_file = Path(output_path)
             output_file.parent.mkdir(parents=True, exist_ok=True)
             output_file.write_bytes(pdf_bytes)
             logger.info(f"PDF saved to {output_path}")
-        
+
         return pdf_bytes
-        
+
     except Exception as e:
         logger.error(f"Error generating PDF: {e}", exc_info=True)
         raise
 
 
-def _create_html_document(content: str, title: Optional[str] = None, metadata: Optional[dict] = None) -> str:
+def _create_html_document(
+    content: str, title: Optional[str] = None, metadata: Optional[dict] = None
+) -> str:
     """
     Create a styled HTML document from content.
-    
+
     Args:
         content: HTML content (from markdown conversion)
         title: Document title
         metadata: Optional metadata to display
-    
+
     Returns:
         Complete HTML document string
     """
     title_text = title or "Research Report"
-    
+
     # Build metadata section if provided
     metadata_html = ""
     if metadata:
         metadata_items = []
-        if metadata.get('task_id'):
+        if metadata.get("task_id"):
             metadata_items.append(f"<strong>Task ID:</strong> {metadata['task_id']}")
-        if metadata.get('confidence_score') is not None:
-            metadata_items.append(f"<strong>Confidence Score:</strong> {metadata['confidence_score']:.2f}")
-        if metadata.get('source_count'):
-            metadata_items.append(f"<strong>Sources Used:</strong> {metadata['source_count']}")
-        if metadata.get('created_at'):
-            metadata_items.append(f"<strong>Generated:</strong> {metadata['created_at']}")
-        
+        if metadata.get("confidence_score") is not None:
+            metadata_items.append(
+                f"<strong>Confidence Score:</strong> {metadata['confidence_score']:.2f}"
+            )
+        if metadata.get("source_count"):
+            metadata_items.append(
+                f"<strong>Sources Used:</strong> {metadata['source_count']}"
+            )
+        if metadata.get("created_at"):
+            metadata_items.append(
+                f"<strong>Generated:</strong> {metadata['created_at']}"
+            )
+
         if metadata_items:
             metadata_html = f"""
             <div class="metadata">
@@ -108,7 +112,7 @@ def _create_html_document(content: str, title: Optional[str] = None, metadata: O
                 </ul>
             </div>
             """
-    
+
     html_doc = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -320,5 +324,5 @@ def _create_html_document(content: str, title: Optional[str] = None, metadata: O
     {content}
 </body>
 </html>"""
-    
+
     return html_doc
