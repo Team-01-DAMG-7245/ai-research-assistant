@@ -60,7 +60,11 @@ class TestS3Infrastructure:
             s3.head_bucket(Bucket=bucket_name)
             print(f"   ✅ Bucket exists: {bucket_name}")
         except (ClientError, NoCredentialsError) as e:
-            error_code = e.response.get("Error", {}).get("Code") if isinstance(e, ClientError) else None
+            error_code = (
+                e.response.get("Error", {}).get("Code")
+                if isinstance(e, ClientError)
+                else None
+            )
             if isinstance(e, NoCredentialsError):
                 pytest.fail(f"AWS credentials not available: {e}")
             elif error_code == "404":
