@@ -4,20 +4,24 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install minimal system dependencies (Streamlit doesn't need heavy deps)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with pip cache mount (requires BuildKit)
+# Streamlit only needs: streamlit, plotly, fastapi (for API calls), openai, pinecone
+# But installing all for compatibility - cache mount speeds up rebuilds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt || \
+    pip install -r requirements.txt
 
 # Copy Streamlit app
 COPY streamlit_app.py .
 
-# Create necessary directories
+# Create necessary directories (logs/ will be mounted as volume)
 RUN mkdir -p logs
 
 # Set environment variables

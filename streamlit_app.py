@@ -140,6 +140,7 @@ def load_cost_data() -> Optional[Dict]:
     """Load cost tracking data from JSON file and format it for display"""
     # Try multiple possible paths
     possible_paths = [
+        Path("/app/logs/cost_tracking.json"),  # Docker container path
         Path("logs/cost_tracking.json"),  # Relative to current directory
         Path(__file__).parent / "logs" / "cost_tracking.json",  # Relative to streamlit_app.py
         Path(__file__).parent.parent / "logs" / "cost_tracking.json",  # Project root
@@ -148,6 +149,9 @@ def load_cost_data() -> Optional[Dict]:
     for cost_file in possible_paths:
         if cost_file.exists():
             try:
+                # Check if file is readable
+                if not cost_file.is_file():
+                    continue
                 with open(cost_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
@@ -182,9 +186,12 @@ def load_cost_data() -> Optional[Dict]:
                         }
                         return data
             except Exception as e:
-                # Don't show warning in Streamlit if file doesn't exist yet
+                # Log error for debugging but continue trying other paths
+                import logging
+                logging.getLogger(__name__).debug(f"Error loading cost file {cost_file}: {e}")
                 continue
     
+    # If we get here, no file was found - return None
     return None
 
 
@@ -738,12 +745,10 @@ elif page == "💰 Cost Dashboard":
     if st.session_state.auto_refresh:
         st.info("🔄 Auto-refresh enabled (every 3 seconds)")
     
+    # Load cost data
     cost_data = load_cost_data()
     
-    # Auto-refresh if enabled
-    if st.session_state.auto_refresh:
-        time.sleep(3)
-        st.rerun()
+    # Note: Auto-refresh moved to end of page to avoid interrupting rendering
     
     if cost_data:
         # Show last updated time if available
@@ -874,6 +879,11 @@ Possible cost tracking file locations:
                     st.warning(f"❌ Cost tracking file not found: {cost_file.absolute()}")
             else:
                 st.warning(f"❌ 'logs' directory not found at: {logs_dir.absolute()}")
+    
+    # Auto-refresh at the end (after all content is rendered)
+    if st.session_state.auto_refresh:
+        time.sleep(3)
+        st.rerun()
 
 
 elif page == "⚙️ Settings":

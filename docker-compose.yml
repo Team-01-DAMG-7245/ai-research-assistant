@@ -57,8 +57,6 @@ services:
     networks:
       - ai-research-network
 
-volumes:
-
 networks:
   ai-research-network:
     driver: bridge

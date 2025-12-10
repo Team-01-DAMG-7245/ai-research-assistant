@@ -389,7 +389,22 @@ pip install flake8 pylint && flake8 src/ tests/ && pylint src/
 
 ## Production Deployment
 
-See [DOCKER.md](DOCKER.md) for detailed Docker deployment instructions including production setup and EC2 deployment.
+Choose your deployment platform:
+
+### Option 1: Google Cloud Run (Simpler, Serverless) ⚡
+- **[CLOUD_RUN_DEPLOYMENT.md](CLOUD_RUN_DEPLOYMENT.md)** - Deploy to Google Cloud Run
+- ✅ **Pros**: No infrastructure management, auto-scaling, pay-per-use, built-in HTTPS
+- ⚠️ **Cons**: Requires refactoring (stateless architecture, move SQLite to Cloud SQL)
+- **Best for**: Low/moderate traffic, want simplicity, willing to make code changes
+
+### Option 2: AWS EC2 (More Control, Traditional) 🖥️
+- **[EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md)** - Step-by-step guide for deploying on AWS EC2
+- ✅ **Pros**: Full control, works with current code (SQLite, local files), no code changes needed
+- ⚠️ **Cons**: More setup (security groups, VPC, SSH), always running costs
+- **Best for**: High traffic, need stateful services, want minimal code changes
+
+### Docker Setup
+- **[DOCKER.md](DOCKER.md)** - Detailed Docker deployment instructions for both platforms
 
 ### Manual Deployment
 
