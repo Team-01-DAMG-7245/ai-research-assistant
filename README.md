@@ -18,7 +18,6 @@ streamlit run streamlit_app.py
 # Docker (Alternative)
 docker compose build                    # Build API + Streamlit
 docker compose up -d                    # Start API + Streamlit
-docker compose --profile airflow up -d  # Start all services (incl. Airflow)
 docker compose logs -f                  # View logs
 docker compose down                     # Stop services
 
@@ -78,10 +77,6 @@ See [Quick Start](#quick-start) section below for detailed instructions.
     - ✅ Docker Compose setup for local development
     - ✅ Multi-container orchestration (API + Streamlit)
     - ✅ Production Docker configuration
-  - ✅ Apache Airflow integration
-    - ✅ Automated data ingestion pipeline scheduling
-    - ✅ DAG-based workflow orchestration
-    - ✅ Web UI for monitoring and management
 
 - 📋 **M5**: Cloud Deployment & Testing (In Progress)
   - ✅ Docker deployment setup
@@ -106,7 +101,6 @@ See [Quick Start](#quick-start) section below for detailed instructions.
 - **PDF Processing**: Text extraction and table extraction
 - **Vector Search**: Pinecone integration for semantic search
 - **AWS Integration**: S3 storage and processing pipeline
-- **Pipeline Orchestration**: Apache Airflow for automated scheduling and monitoring
 - **Multi-Agent RAG Workflow**: LangGraph-based research report generation
 - **Citation Validation**: Automated citation checking and quality assurance
 - **Human-in-the-Loop (HITL)**: Interactive review for low-confidence reports
@@ -178,24 +172,11 @@ Streamlit interface available at:
 
 The project uses Docker Compose profiles to selectively start services:
 
-**Default (API + Streamlit only):**
+**Default (API + Streamlit):**
 ```bash
-# Build and start only API and Streamlit
+# Build and start API and Streamlit
 docker compose build
 docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop services
-docker compose down
-```
-
-**With Airflow (all services):**
-```bash
-# Build and start all services including Airflow
-docker compose --profile airflow build
-docker compose --profile airflow up -d
 
 # View logs
 docker compose logs -f
@@ -207,16 +188,12 @@ docker compose down
 **Service Access:**
 - API: http://localhost:8000
 - Streamlit: http://localhost:8501
-- Airflow: http://localhost:8080 (username: airflow, password: airflow)
 
 **Quick Reference:**
-- `docker compose up` - Starts API and Streamlit (default)
-- `docker compose --profile airflow up` - Starts all services including Airflow
+- `docker compose up` - Starts API and Streamlit
 - `docker compose build` - Builds API and Streamlit images
-- `docker compose --profile airflow build` - Builds all images including Airflow
 
 See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
-See [AIRFLOW.md](AIRFLOW.md) for Airflow setup and usage.
 
 ### 4. API Usage
 
