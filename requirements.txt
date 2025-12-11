@@ -6,7 +6,7 @@ boto3==1.33.13
 arxiv==2.1.0
 
 # Data processing - install before ML packages
-numpy==1.24.4
+numpy>=1.26.0  # Updated for Python 3.12+ compatibility
 pandas==2.1.4
 
 # PDF Processing

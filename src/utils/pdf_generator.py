@@ -10,10 +10,19 @@ from typing import Optional
 from io import BytesIO
 
 import markdown
-from weasyprint import HTML, CSS
-from weasyprint.text.fonts import FontConfiguration
 
 logger = logging.getLogger(__name__)
+
+# Try to import weasyprint, but make it optional for Windows compatibility
+try:
+    from weasyprint import HTML, CSS
+    from weasyprint.text.fonts import FontConfiguration
+    WEASYPRINT_AVAILABLE = True
+    WEASYPRINT_ERROR = None
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    WEASYPRINT_ERROR = str(e)
+    logger.warning(f"WeasyPrint not available: {e}. PDF generation will be disabled.")
 
 
 def markdown_to_pdf(
@@ -33,7 +42,19 @@ def markdown_to_pdf(
     
     Returns:
         PDF file as bytes
+    
+    Raises:
+        RuntimeError: If WeasyPrint is not available (e.g., missing GTK+ libraries on Windows)
     """
+    if not WEASYPRINT_AVAILABLE:
+        error_msg = (
+            "PDF generation is not available. WeasyPrint requires GTK+ runtime libraries.\n"
+            "On Windows, please install GTK+ from: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer\n"
+            f"Original error: {WEASYPRINT_ERROR}"
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    
     try:
         # Convert markdown to HTML
         # Use safe extensions that don't require additional dependencies

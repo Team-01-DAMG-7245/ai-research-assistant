@@ -3,17 +3,40 @@ FastAPI Main Application
 """
 
 import os
+import sys
 import logging
+from pathlib import Path
+
+# Add project root to path if running directly (before any other imports)
+_file_path = Path(__file__).resolve()
+# Check if we're running this file directly (not as a module)
+_is_main = __name__ == "__main__" or (len(sys.argv) > 0 and Path(sys.argv[0]).resolve() == _file_path)
+if _is_main:
+    project_root = _file_path.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from .middleware import (
-    setup_cors_middleware,
-    setup_rate_limit_middleware,
-    setup_error_handler_middleware
-)
-from .endpoints import research, status, report, review
-from .task_manager import get_task_manager
+# Try relative imports first (when run as module), fall back to absolute (when run directly)
+try:
+    from .middleware import (
+        setup_cors_middleware,
+        setup_rate_limit_middleware,
+        setup_error_handler_middleware
+    )
+    from .endpoints import research, status, report, review
+    from .task_manager import get_task_manager
+except ImportError:
+    # Fall back to absolute imports when running directly
+    from src.api.middleware import (
+        setup_cors_middleware,
+        setup_rate_limit_middleware,
+        setup_error_handler_middleware
+    )
+    from src.api.endpoints import research, status, report, review
+    from src.api.task_manager import get_task_manager
 
 # Setup logging
 logging.basicConfig(
