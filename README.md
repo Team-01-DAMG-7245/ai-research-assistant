@@ -1,5 +1,15 @@
 # AI Research Assistant
 
+## Submission
+
+📹 **Project Video & Documentation**: [View on Google Drive](https://drive.google.com/drive/folders/1gx2kvW4Nep3-zNJhyBo4hj6-9KIhjXch?usp=share_link)
+
+🔗 **GitHub Repository**: [https://github.com/Team-01-DAMG-7245/ai-research-assistant](https://github.com/Team-01-DAMG-7245/ai-research-assistant)
+
+
+
+---
+
 An AI-powered research assistant that automates the process of discovering, analyzing, and synthesizing research papers from arXiv. Built with multi-agent workflows, vector search, and RAG (Retrieval-Augmented Generation) capabilities.
 
 ## Key Capabilities
