@@ -3,25 +3,17 @@ OpenAI Client Utility
 Robust client for OpenAI API with retry logic, error handling, and cost tracking
 """
 
+import logging
 import os
 import time
-import logging
-from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import wraps
+from typing import Any, Dict, List, Optional, Union
 
-from dotenv import load_dotenv
-from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError, APIError
 import tiktoken
-
-# Import cost tracker
-try:
-    from .cost_tracker import get_cost_tracker
-    _COST_TRACKER_AVAILABLE = True
-except ImportError:
-    _COST_TRACKER_AVAILABLE = False
-    logger.warning("Cost tracker not available")
+from dotenv import load_dotenv
+from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLimitError
 
 load_dotenv()
 
@@ -29,10 +21,20 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import cost tracker
+try:
+    from .cost_tracker import get_cost_tracker
+
+    _COST_TRACKER_AVAILABLE = True
+except ImportError:
+    _COST_TRACKER_AVAILABLE = False
+    logger.warning("Cost tracker not available")
+
 
 @dataclass
 class UsageStats:
     """Track API usage statistics"""
+
     total_requests: int = 0
     total_tokens: int = 0
     prompt_tokens: int = 0
@@ -64,19 +66,20 @@ def retry_with_exponential_backoff(
 ):
     """
     Decorator for retrying API calls with exponential backoff
-    
+
     Args:
         max_retries: Maximum number of retry attempts
         initial_delay: Initial delay in seconds
         max_delay: Maximum delay in seconds
         exponential_base: Base for exponential backoff calculation
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             delay = initial_delay
             last_exception = None
-            
+
             for attempt in range(max_retries + 1):
                 try:
                     return func(self, *args, **kwargs)
@@ -84,15 +87,15 @@ def retry_with_exponential_backoff(
                     if attempt == max_retries:
                         logger.error(f"Rate limit exceeded after {max_retries} retries")
                         raise
-                    
+
                     # Check if response includes retry-after header
                     retry_after = None
                     try:
-                        if hasattr(e, 'response') and hasattr(e.response, 'headers'):
-                            retry_after = e.response.headers.get('retry-after')
+                        if hasattr(e, "response") and hasattr(e.response, "headers"):
+                            retry_after = e.response.headers.get("retry-after")
                     except (AttributeError, TypeError):
                         pass
-                    
+
                     if retry_after:
                         try:
                             delay = float(retry_after)
@@ -100,19 +103,21 @@ def retry_with_exponential_backoff(
                             delay = min(delay * exponential_base, max_delay)
                     else:
                         delay = min(delay * exponential_base, max_delay)
-                    
+
                     logger.warning(
                         f"Rate limit hit. Retrying in {delay:.2f}s "
                         f"(attempt {attempt + 1}/{max_retries})"
                     )
                     time.sleep(delay)
                     last_exception = e
-                    
+
                 except (APIConnectionError, APITimeoutError) as e:
                     if attempt == max_retries:
-                        logger.error(f"Connection/timeout error after {max_retries} retries: {e}")
+                        logger.error(
+                            f"Connection/timeout error after {max_retries} retries: {e}"
+                        )
                         raise
-                    
+
                     delay = min(delay * exponential_base, max_delay)
                     logger.warning(
                         f"Connection/timeout error. Retrying in {delay:.2f}s "
@@ -120,24 +125,26 @@ def retry_with_exponential_backoff(
                     )
                     time.sleep(delay)
                     last_exception = e
-                    
+
                 except APIError as e:
                     # Don't retry on client errors (4xx) except rate limits
                     status_code = None
                     try:
-                        if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
+                        if hasattr(e, "response") and hasattr(
+                            e.response, "status_code"
+                        ):
                             status_code = e.response.status_code
                     except (AttributeError, TypeError):
                         pass
-                    
+
                     if status_code and 400 <= status_code < 500 and status_code != 429:
                         logger.error(f"Client error (not retrying): {e}")
                         raise
-                    
+
                     if attempt == max_retries:
                         logger.error(f"API error after {max_retries} retries: {e}")
                         raise
-                    
+
                     delay = min(delay * exponential_base, max_delay)
                     logger.warning(
                         f"API error. Retrying in {delay:.2f}s "
@@ -145,17 +152,18 @@ def retry_with_exponential_backoff(
                     )
                     time.sleep(delay)
                     last_exception = e
-                    
+
                 except Exception as e:
                     # Don't retry on unknown errors
                     logger.error(f"Unexpected error: {e}")
                     raise
-            
+
             # If we exhausted retries, raise last exception
             if last_exception:
                 raise last_exception
-                
+
         return wrapper
+
     return decorator
 
 
@@ -163,7 +171,7 @@ class OpenAIClient:
     """
     Robust OpenAI client with retry logic, error handling, and cost tracking
     """
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -172,33 +180,33 @@ class OpenAIClient:
     ):
         """
         Initialize OpenAI client
-        
+
         Args:
             api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
             max_retries: Maximum retry attempts for API calls
             timeout: Request timeout in seconds
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+
         if not self.api_key:
             raise ValueError(
                 "OpenAI API key not found. Set OPENAI_API_KEY environment variable "
                 "or pass api_key parameter."
             )
-        
+
         self.client = OpenAI(api_key=self.api_key, timeout=timeout)
         self.max_retries = max_retries
         self.timeout = timeout
         self.logger = logging.getLogger(__name__)
-        
+
         # Initialize usage tracking
         self.stats = UsageStats()
-        
+
         # Initialize token encoders cache
         self._encoders: Dict[str, tiktoken.Encoding] = {}
-        
+
         self.logger.info("OpenAI client initialized")
-    
+
     def _get_encoding(self, model: str) -> tiktoken.Encoding:
         """Get or create tokenizer encoding for a model"""
         # Map model names to encoding names
@@ -212,39 +220,39 @@ class OpenAIClient:
             "text-embedding-3-small": "cl100k_base",
             "text-embedding-3-large": "cl100k_base",
         }
-        
+
         encoding_name = encoding_map.get(model, "cl100k_base")
-        
+
         if encoding_name not in self._encoders:
             self._encoders[encoding_name] = tiktoken.get_encoding(encoding_name)
-        
+
         return self._encoders[encoding_name]
-    
+
     def count_tokens(
-        self,
-        text: Union[str, List[Dict[str, str]]],
-        model: str = "gpt-3.5-turbo"
+        self, text: Union[str, List[Dict[str, str]]], model: str = "gpt-3.5-turbo"
     ) -> int:
         """
         Count tokens in text or chat messages
-        
+
         Args:
             text: Text string or list of chat messages
             model: Model name for token counting
-            
+
         Returns:
             Number of tokens
         """
         encoding = self._get_encoding(model)
-        
+
         if isinstance(text, str):
             return len(encoding.encode(text))
-        
+
         # Count tokens in chat messages
         # Format: [{"role": "user", "content": "..."}, ...]
-        tokens_per_message = 3  # Every message follows: <|start|>{role/name}\n{content}<|end|>\n
+        tokens_per_message = (
+            3  # Every message follows: <|start|>{role/name}\n{content}<|end|>\n
+        )
         tokens_per_name = 1  # If there's a name, the role is omitted
-        
+
         num_tokens = 0
         for message in text:
             num_tokens += tokens_per_message
@@ -252,42 +260,45 @@ class OpenAIClient:
                 num_tokens += len(encoding.encode(str(value)))
                 if key == "name":
                     num_tokens += tokens_per_name
-        
+
         num_tokens += 3  # Every reply is primed with <|start|>assistant<|message|>
         return num_tokens
-    
+
     def _calculate_cost(
-        self,
-        model: str,
-        prompt_tokens: int,
-        completion_tokens: int = 0
+        self, model: str, prompt_tokens: int, completion_tokens: int = 0
     ) -> float:
         """
         Calculate cost for API call
-        
+
         Args:
             model: Model name
             prompt_tokens: Number of prompt tokens
             completion_tokens: Number of completion tokens
-            
+
         Returns:
             Cost in USD
         """
         # Get base model name (remove version suffixes)
-        base_model = model.split("-", 1)[0] + "-" + model.split("-", 1)[1].split(":")[0] if "-" in model else model
-        
+        base_model = (
+            model.split("-", 1)[0] + "-" + model.split("-", 1)[1].split(":")[0]
+            if "-" in model
+            else model
+        )
+
         # Find matching pricing (exact match or fallback)
         pricing = PRICING.get(model) or PRICING.get(base_model)
-        
+
         if not pricing:
-            self.logger.warning(f"Pricing not found for model {model}, using gpt-3.5-turbo pricing")
+            self.logger.warning(
+                f"Pricing not found for model {model}, using gpt-3.5-turbo pricing"
+            )
             pricing = PRICING["gpt-3.5-turbo"]
-        
+
         input_cost = (prompt_tokens / 1000) * pricing["input"]
         output_cost = (completion_tokens / 1000) * pricing["output"]
-        
+
         return input_cost + output_cost
-    
+
     def _log_api_call(
         self,
         method: str,
@@ -296,12 +307,12 @@ class OpenAIClient:
         completion_tokens: int = 0,
         cost: float = 0.0,
         duration: float = 0.0,
-        operation: Optional[str] = None
+        operation: Optional[str] = None,
     ):
         """
         Log API call with timestamp and details.
         Also logs to cost tracker if available.
-        
+
         Args:
             method: API method name
             model: Model name
@@ -318,11 +329,12 @@ class OpenAIClient:
             f"Tokens: {prompt_tokens}+{completion_tokens}={prompt_tokens + completion_tokens}, "
             f"Cost: ${cost:.6f}, Duration: {duration:.2f}s"
         )
-        
+
         # Log to cost tracker if available
         if _COST_TRACKER_AVAILABLE and operation:
             try:
                 from .cost_tracker import log_api_call
+
                 log_api_call(
                     model=model,
                     prompt_tokens=prompt_tokens,
@@ -330,17 +342,13 @@ class OpenAIClient:
                     operation=operation,
                     cost=cost,
                     method=method,
-                    duration=duration
+                    duration=duration,
                 )
             except Exception as exc:
                 self.logger.warning(f"Failed to log to cost tracker: {exc}")
-    
+
     def _update_stats(
-        self,
-        model: str,
-        prompt_tokens: int,
-        completion_tokens: int,
-        cost: float
+        self, model: str, prompt_tokens: int, completion_tokens: int, cost: float
     ):
         """Update usage statistics"""
         self.stats.total_requests += 1
@@ -348,12 +356,18 @@ class OpenAIClient:
         self.stats.prompt_tokens += prompt_tokens
         self.stats.completion_tokens += completion_tokens
         self.stats.total_cost += cost
-        
+
         # Update per-model stats
-        self.stats.requests_by_model[model] = self.stats.requests_by_model.get(model, 0) + 1
-        self.stats.tokens_by_model[model] = self.stats.tokens_by_model.get(model, 0) + prompt_tokens + completion_tokens
-        self.stats.cost_by_model[model] = self.stats.cost_by_model.get(model, 0.0) + cost
-    
+        self.stats.requests_by_model[model] = (
+            self.stats.requests_by_model.get(model, 0) + 1
+        )
+        self.stats.tokens_by_model[model] = (
+            self.stats.tokens_by_model.get(model, 0) + prompt_tokens + completion_tokens
+        )
+        self.stats.cost_by_model[model] = (
+            self.stats.cost_by_model.get(model, 0.0) + cost
+        )
+
     @retry_with_exponential_backoff(max_retries=5)
     def chat_completion(
         self,
@@ -362,37 +376,39 @@ class OpenAIClient:
         temperature: float = 1.0,
         max_tokens: Optional[int] = None,
         operation: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Create a chat completion with retry logic and error handling
-        
+
         Args:
             messages: List of message dicts with 'role' and 'content'
             model: Model to use (default: gpt-3.5-turbo)
             temperature: Sampling temperature (0-2)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional parameters for chat.completions.create
-            
+
         Returns:
             Response dictionary with content and metadata
-            
+
         Raises:
             ValueError: If messages are invalid
             APIError: If API call fails after retries
         """
         start_time = time.time()
-        
+
         if not messages or not isinstance(messages, list):
             raise ValueError("Messages must be a non-empty list")
-        
+
         # Count tokens before API call
         estimated_tokens = self.count_tokens(messages, model)
-        self.logger.info(f"Creating chat completion with {estimated_tokens} estimated tokens")
-        
+        self.logger.info(
+            f"Creating chat completion with {estimated_tokens} estimated tokens"
+        )
+
         # Extract task_id from kwargs for logging (don't pass to OpenAI API)
         task_id = kwargs.pop("task_id", None)
-        
+
         try:
             # Make API call (task_id removed from kwargs)
             response = self.client.chat.completions.create(
@@ -400,72 +416,80 @@ class OpenAIClient:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                **kwargs
+                **kwargs,
             )
-            
+
             # Extract usage information
             usage = response.usage
             prompt_tokens = usage.prompt_tokens
             completion_tokens = usage.completion_tokens
             total_tokens = usage.total_tokens
-            
+
             # Get response content
             content = response.choices[0].message.content
-            
+
             # Calculate cost
             cost = self._calculate_cost(model, prompt_tokens, completion_tokens)
-            
+
             # Calculate duration
             duration = time.time() - start_time
-            
+
             # Log and update stats
-            self._log_api_call("chat_completion", model, prompt_tokens, completion_tokens, cost, duration, operation)
+            self._log_api_call(
+                "chat_completion",
+                model,
+                prompt_tokens,
+                completion_tokens,
+                cost,
+                duration,
+                operation,
+            )
             self._update_stats(model, prompt_tokens, completion_tokens, cost)
-            
+
             return {
                 "content": content,
                 "model": model,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
-                    "total_tokens": total_tokens
+                    "total_tokens": total_tokens,
                 },
                 "cost": cost,
                 "duration": duration,
                 "response_id": response.id,
-                "finish_reason": response.choices[0].finish_reason
+                "finish_reason": response.choices[0].finish_reason,
             }
-            
+
         except Exception as e:
             duration = time.time() - start_time
             self.logger.error(f"Chat completion failed after {duration:.2f}s: {e}")
             raise
-    
+
     @retry_with_exponential_backoff(max_retries=5)
     def create_embedding(
         self,
         text: Union[str, List[str]],
         model: str = "text-embedding-3-small",
         operation: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Create embeddings with retry logic and error handling
-        
+
         Args:
             text: Single text string or list of text strings
             model: Embedding model to use (default: text-embedding-3-small)
             **kwargs: Additional parameters for embeddings.create
-            
+
         Returns:
             Dictionary with embeddings and metadata
-            
+
         Raises:
             ValueError: If text is invalid
             APIError: If API call fails after retries
         """
         start_time = time.time()
-        
+
         # Normalize input to list
         if isinstance(text, str):
             texts = [text]
@@ -473,63 +497,69 @@ class OpenAIClient:
             texts = text
         else:
             raise ValueError("Text must be a non-empty string or list of strings")
-        
+
         # Count tokens
         total_tokens = sum(self.count_tokens(t, model) for t in texts)
-        self.logger.info(f"Creating embeddings for {len(texts)} text(s) with {total_tokens} estimated tokens")
-        
+        self.logger.info(
+            f"Creating embeddings for {len(texts)} text(s) with {total_tokens} estimated tokens"
+        )
+
         # Extract task_id from kwargs for logging (don't pass to OpenAI API)
         task_id = kwargs.pop("task_id", None)
-        
+
         try:
             # Make API call (task_id removed from kwargs)
-            response = self.client.embeddings.create(
-                model=model,
-                input=texts,
-                **kwargs
-            )
-            
+            response = self.client.embeddings.create(model=model, input=texts, **kwargs)
+
             # Extract usage information
             usage = response.usage
             prompt_tokens = usage.prompt_tokens
-            
+
             # Get embeddings
             embeddings = [item.embedding for item in response.data]
-            
+
             # For single input, return single embedding
             if isinstance(text, str):
                 embeddings = embeddings[0]
-            
+
             # Calculate cost
             cost = self._calculate_cost(model, prompt_tokens, 0)
-            
+
             # Calculate duration
             duration = time.time() - start_time
-            
+
             # Log and update stats
-            self._log_api_call("create_embedding", model, prompt_tokens, 0, cost, duration, operation or "embedding")
+            self._log_api_call(
+                "create_embedding",
+                model,
+                prompt_tokens,
+                0,
+                cost,
+                duration,
+                operation or "embedding",
+            )
             self._update_stats(model, prompt_tokens, 0, cost)
-            
+
             return {
                 "embeddings": embeddings,
                 "model": model,
                 "usage": {
                     "prompt_tokens": prompt_tokens,
-                    "total_tokens": prompt_tokens
+                    "total_tokens": prompt_tokens,
                 },
                 "cost": cost,
-                "duration": duration
+                "duration": duration,
             }
-            
+
         except Exception as e:
             duration = time.time() - start_time
             self.logger.error(f"Embedding creation failed after {duration:.2f}s: {e}")
             raise
-    
+
     def get_usage_stats(self) -> Dict[str, Any]:
         """
         Get current usage statistics
-        
+
         Returns:
             Dictionary with usage statistics
         """
@@ -541,9 +571,9 @@ class OpenAIClient:
             "total_cost": self.stats.total_cost,
             "requests_by_model": dict(self.stats.requests_by_model),
             "tokens_by_model": dict(self.stats.tokens_by_model),
-            "cost_by_model": dict(self.stats.cost_by_model)
+            "cost_by_model": dict(self.stats.cost_by_model),
         }
-    
+
     def reset_stats(self):
         """Reset usage statistics"""
         self.stats = UsageStats()
@@ -554,19 +584,17 @@ class OpenAIClient:
 if __name__ == "__main__":
     # Initialize client
     client = OpenAIClient()
-    
+
     # Test chat completion
-    messages = [
-        {"role": "user", "content": "What is machine learning?"}
-    ]
-    
+    messages = [{"role": "user", "content": "What is machine learning?"}]
+
     try:
         response = client.chat_completion(messages, model="gpt-3.5-turbo")
         print(f"\nResponse: {response['content'][:200]}...")
         print(f"Cost: ${response['cost']:.6f}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Test embedding
     try:
         embedding_response = client.create_embedding(
@@ -576,11 +604,10 @@ if __name__ == "__main__":
         print(f"Cost: ${embedding_response['cost']:.6f}")
     except Exception as e:
         print(f"Error: {e}")
-    
+
     # Print usage stats
     stats = client.get_usage_stats()
     print(f"\nUsage Stats:")
     print(f"  Total requests: {stats['total_requests']}")
     print(f"  Total tokens: {stats['total_tokens']}")
     print(f"  Total cost: ${stats['total_cost']:.6f}")
-

@@ -13,31 +13,58 @@ This guide explains how to dockerize and deploy the AI Research Assistant on EC2
 
 ### 1. Build and Run Locally
 
+**Simple Commands (No Profiles Needed):**
+
+All services are built together, but you can selectively start only what you need.
+
+**Build Services:**
 ```bash
-# Build 
 docker compose build
+```
+
+**Start API + Streamlit:**
+```bash
+docker compose up -d api streamlit
+```
+
+**Start All Services:**
+```bash
+docker compose up -d
+```
+
+**Common Commands:**
+```bash
+# Build all services
+docker compose build
+
+# Start only API and Streamlit (recommended for EC2)
+docker compose up -d api streamlit
 
 # Start all services
 docker compose up -d
 
-# View logs
+# View logs for API and Streamlit
+docker compose logs -f api streamlit
+
+# View all logs
 docker compose logs -f
 
-# Stop services
+# Stop all services
 docker compose down
 ```
 
 ### 2. Production Deployment
 
+**EC2 / Production (API + Streamlit):**
 ```bash
-# Build for production
+# Build services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
-# Start in production mode
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Start API and Streamlit in production mode
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api streamlit
 
 # View logs
-docker compose logs -f
+docker compose logs -f api streamlit
 ```
 
 ## Services
@@ -53,6 +80,7 @@ docker compose logs -f
 - Connects to API service
 - Cost dashboard
 - Health check: `http://localhost:8501/_stcore/health`
+
 
 ## Environment Variables
 
@@ -95,9 +123,10 @@ sudo yum install docker -y
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+# Install Docker Compose V2 (plugin, comes with Docker Desktop or can be installed separately)
+# For Linux, Docker Compose V2 is included with Docker Engine 20.10+
+# Verify installation:
+docker compose version
 
 # Log out and back in for group changes to take effect
 exit
@@ -126,16 +155,17 @@ nano .env  # Edit with your API keys
 
 ### 4. Build and Deploy
 
+**EC2 / Production (API + Streamlit):**
 ```bash
 # Build images
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # Start services
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Check status
-docker-compose ps
-docker-compose logs -f
+docker compose ps
+docker compose logs -f
 ```
 
 ### 5. Configure Security Groups
@@ -197,21 +227,21 @@ sudo systemctl enable nginx
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f api
-docker-compose logs -f streamlit
+docker compose logs -f api
+docker compose logs -f streamlit
 ```
 
 ### Restart Services
 
 ```bash
 # Restart all
-docker-compose restart
+docker compose restart
 
 # Restart specific service
-docker-compose restart api
+docker compose restart api
 ```
 
 ### Update Application
@@ -221,7 +251,7 @@ docker-compose restart api
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ### Backup Data
@@ -240,14 +270,14 @@ tar -xzf backup-YYYYMMDD.tar.gz
 
 ```bash
 # Check logs
-docker-compose logs
+docker compose logs
 
 # Check if ports are in use
 sudo netstat -tulpn | grep -E '8000|8501'
 
 # Check Docker status
 docker ps -a
-docker-compose ps
+docker compose ps
 ```
 
 ### API not accessible
@@ -257,10 +287,10 @@ docker-compose ps
 curl http://localhost:8000/health
 
 # Check if container is running
-docker-compose ps api
+docker compose ps api
 
 # Check API logs
-docker-compose logs api
+docker compose logs api
 ```
 
 ### Streamlit can't connect to API
@@ -270,7 +300,7 @@ docker-compose logs api
 # Should be: http://api:8000 (internal Docker network)
 
 # Test connectivity from Streamlit container
-docker-compose exec streamlit curl http://api:8000/health
+docker compose exec streamlit curl http://api:8000/health
 ```
 
 ### Out of memory
@@ -308,3 +338,4 @@ For high traffic, consider:
 - Right-size instance types
 - Use CloudWatch for monitoring
 - Set up auto-scaling if needed
+

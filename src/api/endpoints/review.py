@@ -5,9 +5,10 @@ Review API Endpoint for HITL (Human-In-The-Loop) review
 import logging
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Path, status, BackgroundTasks
 
-from ..models import ReviewRequest, ReviewResponse, TaskStatus, ErrorResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, status
+
+from ..models import ErrorResponse, ReviewRequest, ReviewResponse, TaskStatus
 from ..task_manager import get_task_manager
 from ..workflow_executor import get_workflow_executor
 
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/api/v1", tags=["review"])
 async def submit_review(
     task_id: str = Path(..., description="Task identifier (UUID)"),
     request: ReviewRequest = ...,
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     Submit HITL review action (approve, edit, or reject)
@@ -29,35 +30,34 @@ async def submit_review(
     if task_id != request.task_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="task_id in path does not match task_id in request body"
+            detail="task_id in path does not match task_id in request body",
         )
-    
+
     # Validate UUID format
     try:
         uuid.UUID(task_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid task_id format. Must be a valid UUID."
+            detail="Invalid task_id format. Must be a valid UUID.",
         )
-    
+
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
-    
+
     # Check if task is pending review
-    task_status = TaskStatus(task['status'])
+    task_status = TaskStatus(task["status"])
     if task_status != TaskStatus.PENDING_REVIEW:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Task {task_id} is not pending review. Current status: {task_status.value}"
+            detail=f"Task {task_id} is not pending review. Current status: {task_status.value}",
         )
-    
+
     # Process review action
     try:
         workflow_executor = get_workflow_executor()
@@ -65,61 +65,62 @@ async def submit_review(
             task_id=task_id,
             action=request.action.value,
             edited_report=request.edited_report,
-            rejection_reason=request.rejection_reason
+            rejection_reason=request.rejection_reason,
         )
-        
+
         if not result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.get("error", "Failed to process review action")
+                detail=result.get("error", "Failed to process review action"),
             )
-        
+
         # If rejection was successful, trigger workflow regeneration
         if request.action.value == "reject" and result.get("original_query"):
             original_query = result.get("original_query")
             # Get user_id from task metadata if available
             task = task_manager.get_task(task_id)
-            metadata = task.get('metadata', {})
+            metadata = task.get("metadata", {})
             if isinstance(metadata, str):
                 import json
+
                 try:
                     metadata = json.loads(metadata)
                 except:
                     metadata = {}
-            user_id = metadata.get('user_id')
-            
+            user_id = metadata.get("user_id")
+
             # Trigger new workflow execution in background
             background_tasks.add_task(
                 workflow_executor.execute_research_workflow,
                 task_id=task_id,
                 query=original_query,
-                user_id=user_id
+                user_id=user_id,
             )
             logger.info(f"Triggered workflow regeneration for rejected task {task_id}")
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error processing review for task {task_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal error processing review: {str(e)}"
+            detail=f"Internal error processing review: {str(e)}",
         )
-    
+
     # Get updated task for message
     updated_task = task_manager.get_task(task_id)
     message_map = {
         "approve": "Report approved successfully",
         "edit": "Report edited and approved successfully",
-        "reject": "Report rejected. Regenerating..."
+        "reject": "Report rejected. Regenerating...",
     }
     message = message_map.get(request.action.value, "Review action processed")
-    
+
     logger.info(f"Review action {request.action.value} completed for task {task_id}")
-    
+
     return ReviewResponse(
         task_id=task_id,
         message=message,
         action=request.action,
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     )

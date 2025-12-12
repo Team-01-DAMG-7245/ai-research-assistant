@@ -17,14 +17,14 @@ import re
 import time
 from typing import Any, Dict, List
 
-from ..utils.openai_client import OpenAIClient
 from ..utils.logger import (
     get_agent_logger,
-    log_state_transition,
     log_api_call,
-    log_performance_metrics,
     log_error_with_context,
+    log_performance_metrics,
+    log_state_transition,
 )
+from ..utils.openai_client import OpenAIClient
 from .prompts import VALIDATION_AGENT_PROMPT, format_validation_agent_prompt
 from .state import ResearchState
 
@@ -32,10 +32,12 @@ from .state import ResearchState
 try:
     import sys
     from pathlib import Path
+
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
-    from src.api.task_manager import get_task_manager
     from src.api.models import TaskStatus
+    from src.api.task_manager import get_task_manager
+
     TASK_MANAGER_AVAILABLE = True
 except ImportError:
     TASK_MANAGER_AVAILABLE = False
@@ -58,14 +60,12 @@ def verify_citations(report: str, num_sources: int) -> List[int]:
         return []
 
     # Extract all citation numbers using regex
-    pattern = r'\[Source\s+(\d+)\]'
+    pattern = r"\[Source\s+(\d+)\]"
     matches = re.findall(pattern, report, re.IGNORECASE)
     citation_numbers = [int(m) for m in matches]
 
     # Find citations outside valid range [1, num_sources]
-    invalid_citations = [
-        n for n in citation_numbers if n < 1 or n > num_sources
-    ]
+    invalid_citations = [n for n in citation_numbers if n < 1 or n > num_sources]
 
     if invalid_citations:
         logger.warning(
@@ -133,7 +133,9 @@ def _parse_validation_response(response_text: str) -> Dict[str, Any]:
     # Validate confidence score range
     confidence = float(result.get("confidence", 0.0))
     if confidence < 0.0 or confidence > 1.0:
-        logger.warning("Confidence score out of range [0.0, 1.0]: %f, clamping", confidence)
+        logger.warning(
+            "Confidence score out of range [0.0, 1.0]: %f, clamping", confidence
+        )
         result["confidence"] = max(0.0, min(1.0, confidence))
 
     return result
@@ -201,11 +203,11 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
     """
     start_time = time.time()
     task_id = state.get("task_id", "unknown")
-    
+
     logger.info("=" * 70)
     logger.info("VALIDATION AGENT - Entry | task_id=%s", task_id)
     logger.debug("Input state keys: %s", list(state.keys()))
-    
+
     # Update task status to show validation agent is running
     if TASK_MANAGER_AVAILABLE:
         try:
@@ -214,12 +216,14 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
                 task_id,
                 TaskStatus.PROCESSING,
                 progress=80.0,
-                message="Validating report quality and citations..."
+                message="Validating report quality and citations...",
             )
-            logger.info("Updated task status: Validation agent running | task_id=%s", task_id)
+            logger.info(
+                "Updated task status: Validation agent running | task_id=%s", task_id
+            )
         except Exception as e:
             logger.warning("Failed to update task status: %s", e)
-    
+
     new_state = dict(state)
     new_state["current_agent"] = "validation"
 
@@ -229,7 +233,9 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
 
         if not report_draft:
             error_msg = "report_draft is required in state for validation agent"
-            log_error_with_context(logger, ValueError(error_msg), "validation_agent_node", task_id=task_id)
+            log_error_with_context(
+                logger, ValueError(error_msg), "validation_agent_node", task_id=task_id
+            )
             new_state["error"] = error_msg
             new_state["validation_result"] = {
                 "valid": False,
@@ -242,12 +248,17 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
             new_state["needs_hitl"] = True
             return new_state
 
-        logger.info("Validating report | report_length=%d chars | word_count=%d", 
-                   len(report_draft), len(report_draft.split()))
+        logger.info(
+            "Validating report | report_length=%d chars | word_count=%d",
+            len(report_draft),
+            len(report_draft.split()),
+        )
 
         num_sources = len(retrieved_chunks)
         if num_sources == 0:
-            logger.warning("No retrieved_chunks found in state, using search_results count")
+            logger.warning(
+                "No retrieved_chunks found in state, using search_results count"
+            )
             search_results = state.get("search_results", [])
             num_sources = len(search_results)
 
@@ -266,25 +277,30 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
 
         # 2) Format sources for validation prompt
         # Use retrieved_chunks if available, otherwise use search_results
-        sources = retrieved_chunks if retrieved_chunks else state.get("search_results", [])
-        
+        sources = (
+            retrieved_chunks if retrieved_chunks else state.get("search_results", [])
+        )
+
         # Format sources as list of dicts with 'content' key for the prompt formatter
         source_dicts = []
         for chunk in sources:
-            source_dicts.append({
-                "content": chunk.get("text", "") or chunk.get("content", ""),
-                "title": chunk.get("title", ""),
-                "doc_id": chunk.get("doc_id", ""),
-            })
+            source_dicts.append(
+                {
+                    "content": chunk.get("text", "") or chunk.get("content", ""),
+                    "title": chunk.get("title", ""),
+                    "doc_id": chunk.get("doc_id", ""),
+                }
+            )
 
         # 3) Call GPT-4o Mini with VALIDATION_AGENT_PROMPT
         validation_start_time = time.time()
-        logger.info("Calling OpenAI API for validation | model=gpt-4o-mini | temperature=0.1")
+        logger.info(
+            "Calling OpenAI API for validation | model=gpt-4o-mini | temperature=0.1"
+        )
         openai_client = OpenAIClient()
 
         prompt = format_validation_agent_prompt(
-            report=report_draft,
-            sources=source_dicts
+            report=report_draft, sources=source_dicts
         )
 
         messages = [{"role": "user", "content": prompt}]
@@ -345,7 +361,9 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
                 parse_duration,
             )
         except Exception as exc:
-            log_error_with_context(logger, exc, "parse_validation_response", task_id=task_id)
+            log_error_with_context(
+                logger, exc, "parse_validation_response", task_id=task_id
+            )
             new_state["error"] = f"validation_agent_parse_error: {exc}"
             new_state["validation_result"] = {
                 "valid": False,
@@ -382,13 +400,13 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
         # Can be overridden via environment variable for testing
         HITL_THRESHOLD = float(os.getenv("HITL_CONFIDENCE_THRESHOLD", "0.7"))
         needs_hitl = confidence_score < HITL_THRESHOLD
-        
+
         logger.info(
             "HITL decision | task_id=%s | confidence=%.2f | threshold=%.2f | needs_hitl=%s",
             task_id,
             confidence_score,
             HITL_THRESHOLD,
-            needs_hitl
+            needs_hitl,
         )
 
         # Add citation verification results to validation_result
@@ -415,7 +433,7 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
             citation_duration=citation_duration,
             validation_duration=validation_duration,
         )
-        
+
         log_state_transition(
             logger,
             from_state="synthesis",
@@ -424,7 +442,7 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
             confidence_score=confidence_score,
             needs_hitl=needs_hitl,
         )
-        
+
         logger.info(
             "VALIDATION AGENT - Exit | task_id=%s | confidence=%.2f | needs_hitl=%s | duration=%.2fs",
             task_id,
@@ -447,17 +465,19 @@ def validation_agent_node(state: ResearchState) -> ResearchState:
         )
         new_state["error"] = f"validation_agent_node_error: {exc}"
         # Ensure we always have these keys present
-        new_state.setdefault("validation_result", {
-            "valid": False,
-            "confidence": 0.0,
-            "issues": [str(exc)],
-            "citation_coverage": 0.0,
-            "unsupported_claims": [],
-        })
+        new_state.setdefault(
+            "validation_result",
+            {
+                "valid": False,
+                "confidence": 0.0,
+                "issues": [str(exc)],
+                "citation_coverage": 0.0,
+                "unsupported_claims": [],
+            },
+        )
         new_state.setdefault("confidence_score", 0.0)
         new_state.setdefault("needs_hitl", True)
         return new_state
 
 
 __all__ = ["validation_agent_node", "verify_citations"]
-

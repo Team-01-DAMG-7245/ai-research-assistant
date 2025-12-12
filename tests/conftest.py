@@ -5,6 +5,7 @@ Pytest configuration and shared fixtures for API tests.
 import os
 import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -31,4 +32,3 @@ if not os.getenv("PINECONE_INDEX_NAME"):
     os.environ["PINECONE_INDEX_NAME"] = "test-index"
 if not os.getenv("S3_BUCKET_NAME"):
     os.environ["S3_BUCKET_NAME"] = "test-bucket"
-
