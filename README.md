@@ -6,6 +6,10 @@
 
 🔗 **GitHub Repository**: [https://github.com/Team-01-DAMG-7245/ai-research-assistant](https://github.com/Team-01-DAMG-7245/ai-research-assistant)
 
+📚 **Codelabs Documentation**: [View on Codelabs](https://codelabs-preview.appspot.com/?file_id=11Ld5n0n5nFOdt7d9RANhEeWbkU21C62pQ-NjZHFW_to/edit?tab=t.0#0)
+
+
+
 
 
 ---
@@ -390,6 +394,8 @@ See `src/agents/` for detailed agent implementations.
 - **Report Length**: 1,200-1,500 words with 18-25 sources
 
 ## Architecture Overview
+
+![AI-Powered Research Assistant Architecture](docs/architecture_diagram.png)
 
 The AI Research Assistant uses a multi-agent architecture built with LangGraph:
 
