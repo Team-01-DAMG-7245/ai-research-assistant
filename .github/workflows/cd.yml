@@ -175,8 +175,8 @@ jobs:
               image: ${{ env.DOCKER_IMAGE_STREAMLIT }}
           EOF
           
-          # Start services with production config and override
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod.override.yml up -d
+          # Start only api and streamlit services (exclude postgres/airflow)
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod.override.yml up -d api streamlit
           
           # Clean up old images
           docker image prune -f

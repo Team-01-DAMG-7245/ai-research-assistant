@@ -57,6 +57,29 @@ services:
     networks:
       - ai-research-network
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-research-postgres
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-research-network
+
+volumes:
+  postgres_data:
+
 networks:
   ai-research-network:
     driver: bridge

@@ -1,6 +1,6 @@
 {
-  "last_updated": "2025-12-10T04:28:45.989267",
-  "total_records": 390,
+  "last_updated": "2025-12-12T06:29:56.161968",
+  "total_records": 399,
   "records": [
     {
       "timestamp": "2025-12-01T12:47:57.919807",
@@ -4681,6 +4681,114 @@
       "operation": "validation",
       "method": "chat_completion",
       "duration": 4.335383176803589
+    },
+    {
+      "timestamp": "2025-12-12T06:28:56.740814",
+      "task_id": null,
+      "model": "gpt-4o-mini",
+      "prompt_tokens": 96,
+      "completion_tokens": 65,
+      "total_tokens": 161,
+      "cost": 0.00027400000000000005,
+      "operation": "query_expansion",
+      "method": "chat_completion",
+      "duration": 6.044235944747925
+    },
+    {
+      "timestamp": "2025-12-12T06:28:59.151802",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 7,
+      "completion_tokens": 0,
+      "total_tokens": 7,
+      "cost": 1.4e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 2.265956401824951
+    },
+    {
+      "timestamp": "2025-12-12T06:29:03.014482",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 7,
+      "completion_tokens": 0,
+      "total_tokens": 7,
+      "cost": 1.4e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 1.1535818576812744
+    },
+    {
+      "timestamp": "2025-12-12T06:29:04.710287",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 10,
+      "completion_tokens": 0,
+      "total_tokens": 10,
+      "cost": 2.0000000000000002e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 1.2355644702911377
+    },
+    {
+      "timestamp": "2025-12-12T06:29:06.179547",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 8,
+      "completion_tokens": 0,
+      "total_tokens": 8,
+      "cost": 1.6e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 1.0855927467346191
+    },
+    {
+      "timestamp": "2025-12-12T06:29:07.565234",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 9,
+      "completion_tokens": 0,
+      "total_tokens": 9,
+      "cost": 1.8e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 1.0591518878936768
+    },
+    {
+      "timestamp": "2025-12-12T06:29:08.322839",
+      "task_id": null,
+      "model": "text-embedding-3-small",
+      "prompt_tokens": 9,
+      "completion_tokens": 0,
+      "total_tokens": 9,
+      "cost": 1.8e-07,
+      "operation": "embedding",
+      "method": "create_embedding",
+      "duration": 0.32619810104370117
+    },
+    {
+      "timestamp": "2025-12-12T06:29:44.883774",
+      "task_id": null,
+      "model": "gpt-4o-mini",
+      "prompt_tokens": 35143,
+      "completion_tokens": 1432,
+      "total_tokens": 36575,
+      "cost": 0.0555785,
+      "operation": "synthesis",
+      "method": "chat_completion",
+      "duration": 33.02765369415283
+    },
+    {
+      "timestamp": "2025-12-12T06:29:56.161950",
+      "task_id": null,
+      "model": "gpt-4o-mini",
+      "prompt_tokens": 35617,
+      "completion_tokens": 103,
+      "total_tokens": 35720,
+      "cost": 0.05363149999999999,
+      "operation": "validation",
+      "method": "chat_completion",
+      "duration": 11.057546377182007
     }
   ]
 }
