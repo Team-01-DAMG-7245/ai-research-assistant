@@ -56,3 +56,7 @@ plotly>=5.17.0
 
 # Production server (for Docker deployment)
 gunicorn>=21.2.0
+
+# Apache Airflow (for scheduled data ingestion)
+apache-airflow>=2.8.0
+psycopg2-binary>=2.9.0  # PostgreSQL adapter for Airflow
