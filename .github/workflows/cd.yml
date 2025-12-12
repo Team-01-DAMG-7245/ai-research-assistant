@@ -164,7 +164,7 @@ jobs:
           docker pull ${{ env.DOCKER_IMAGE_STREAMLIT }}
           
           # Stop existing containers
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml down || true
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml down || true
           
           # Create override file to use Docker Hub images instead of building
           cat > docker-compose.prod.override.yml << EOF
@@ -176,7 +176,7 @@ jobs:
           EOF
           
           # Start services with production config and override
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod.override.yml up -d
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.prod.override.yml up -d
           
           # Clean up old images
           docker image prune -f

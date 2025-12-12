@@ -2,12 +2,16 @@
 
 This guide walks you through deploying the AI Research Assistant on AWS EC2.
 
+> **⚠️ Important: Docker Compose Command Syntax**
+> - **EC2 uses**: `docker-compose` (hyphen, v1 syntax) - all commands in this guide use this
+> - **Local development uses**: `docker compose` (space, v2 syntax) - see [DOCKER.md](DOCKER.md) for local commands
+
 ## Prerequisites
 
 - AWS account with EC2 access
 - EC2 instance (recommended: t3.medium or larger, 4GB+ RAM)
 - SSH access to your EC2 instance
-- Docker and Docker Compose installed (or we'll install them)
+- Docker and Docker Compose v1 installed (or we'll install them)
 
 ## Do I Need a VPC?
 
@@ -496,31 +500,31 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # All services
-docker compose logs -f
+docker-compose logs -f
 
 # Specific service
-docker compose logs -f api
-docker compose logs -f streamlit
+docker-compose logs -f api
+docker-compose logs -f streamlit
 
 # Last 100 lines
-docker compose logs --tail=100 api
+docker-compose logs --tail=100 api
 ```
 
 ### Restart Services
 
 ```bash
 # Restart all
-docker compose restart
+docker-compose restart
 
 # Restart specific service
-docker compose restart api
-docker compose restart streamlit
+docker-compose restart api
+docker-compose restart streamlit
 ```
 
 ### Stop Services
 
 ```bash
-docker compose down
+docker-compose down
 ```
 
 ### Update Application
@@ -530,11 +534,11 @@ docker compose down
 git pull
 
 # Rebuild and restart
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # Or rebuild specific service
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build api
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml build api
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
 ```
 
 ### Backup Data
@@ -556,14 +560,14 @@ aws s3 cp backup-*.tar.gz s3://your-backup-bucket/
 
 ```bash
 # Check logs
-docker compose logs
+docker-compose logs
 
 # Check if ports are in use
 sudo netstat -tulpn | grep -E '8000|8501'
 
 # Check Docker status
 docker ps -a
-docker compose ps
+docker-compose ps
 ```
 
 ### API Not Accessible
@@ -573,10 +577,10 @@ docker compose ps
 curl http://localhost:8000/health
 
 # Check if container is running
-docker compose ps api
+docker-compose ps api
 
 # Check API logs
-docker compose logs api
+docker-compose logs api
 
 # Check security group allows port 8000
 # AWS Console → EC2 → Security Groups → Inbound rules
@@ -599,7 +603,7 @@ docker compose logs api
 # Should be: http://api:8000 (internal Docker network)
 
 # Test connectivity from Streamlit container
-docker compose exec streamlit curl http://api:8000/health
+docker-compose exec streamlit curl http://api:8000/health
 ```
 
 ### Out of Memory
@@ -627,11 +631,11 @@ sudo usermod -aG docker $USER
 ls -la .env
 
 # Check if variables are loaded
-docker compose exec api env | grep OPENAI
+docker-compose exec api env | grep OPENAI
 
 # Restart services after .env changes
-docker compose down
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose down
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ### VPC/Networking Issues
@@ -784,22 +788,22 @@ curl -4 ifconfig.me
 
 ```bash
 # Start services
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # Stop services
-docker compose down
+docker-compose down
 
 # View logs
-docker compose logs -f
+docker-compose logs -f
 
 # Restart services
-docker compose restart
+docker-compose restart
 
 # Update and rebuild
-git pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+git pull && docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # Check status
-docker compose ps
+docker-compose ps
 curl http://localhost:8000/health
 ```
 
@@ -810,5 +814,5 @@ curl http://localhost:8000/health
 For issues or questions:
 1. Check the [DOCKER.md](DOCKER.md) for detailed Docker instructions
 2. Review [README.md](README.md) for general setup
-3. Check logs: `docker compose logs -f`
+3. Check logs: `docker-compose logs -f`
 4. Verify environment variables are set correctly
