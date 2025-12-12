@@ -1,6 +1,8 @@
 
 ## Submission
 
+**Streamlit Dashboard**: http://34.231.244.167:8501/
+
 📹 **Project Video & Documentation**: https://drive.google.com/file/d/1kc15DQe6K-SGFtAdy-NVkq5jvs4O1do6/view?usp=sharing
 
 🔗 **GitHub Repository**: [https://github.com/Team-01-DAMG-7245/ai-research-assistant](https://github.com/Team-01-DAMG-7245/ai-research-assistant)
